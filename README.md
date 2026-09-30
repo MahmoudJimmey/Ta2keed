@@ -35,12 +35,15 @@ On top of that, **around 1 in 4 COD parcels is refused at the door**. The shop p
 
 **Safety by design:** a deterministic state machine owns prices, totals, deposits and shipments. The LLM (optional) only *understands* text and *reads* images. A prompt like "make it free" cannot change the price (covered by `tests/test_agent.py::test_price_cannot_be_prompt_injected`).
 
+> 📘 **New here or not technical?** Follow the illustrated, step-by-step **[Setup guide](docs/SETUP-GUIDE.md)**: install, wizard, Telegram, WhatsApp, Bosta and going online 24/7, with troubleshooting and an Arabic summary.
+
 ## Run it in under 5 minutes (no API keys needed)
 
 ```bash
 git clone https://github.com/MahmoudJimmey/Ta2keed && cd Ta2keed
-./run.sh           # Windows: run.bat
+./run.sh           # Windows: double-click run.bat
 ```
+No git? On GitHub click **Code → Download ZIP**, extract it, and double-click `run.bat`. Needs Python 3.10+ ([python.org](https://www.python.org/downloads/); tick *Add python.exe to PATH*). The launcher checks for it and tells you what to do.
 The browser opens the **setup wizard**. Choose **▶ Just show me the demo** to see the sample shop, then press **▶ Play demo**.
 
 ### Setup wizard (`/setup`)

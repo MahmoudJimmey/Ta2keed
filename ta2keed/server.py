@@ -42,9 +42,7 @@ async def lifespan(app: FastAPI):
     if settings.demo and not db.one("SELECT phone FROM customers LIMIT 1"):
         db.seed_customers()
     _banner()
-    tasks = []
-    if settings.telegram_bot_token:
-        tasks.append(asyncio.create_task(channels.telegram_loop()))
+    tasks = [asyncio.create_task(channels.telegram_supervisor())]  # starts/stops as the token is added in /setup
     if settings.scheduler_enabled:
         tasks.append(asyncio.create_task(scheduler.loop()))
     yield

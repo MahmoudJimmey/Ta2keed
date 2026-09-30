@@ -186,3 +186,28 @@ def test_dashboard_api():
         r = c.post(f"/api/payment-checks/{rows[0]['id']}/decide", json={"approve": True}).json()
         assert r["approved"]
         assert c.get("/api/payment-checks").json() == []
+
+
+def test_telegram_starts_when_token_added_later(monkeypatch):
+    """Owner pastes the bot token into the wizard while the app runs: the poller starts without a restart."""
+    from ta2keed import channels
+    started = []
+
+    async def fake_loop():
+        started.append(1)
+        await asyncio.sleep(3600)
+    monkeypatch.setattr(channels, "telegram_loop", fake_loop)
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+
+    async def run():
+        sup = asyncio.create_task(channels.telegram_supervisor(check_every=0.01))
+        await asyncio.sleep(0.05)
+        assert started == []
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+        await asyncio.sleep(0.05)
+        assert started == [1]
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "456:def")      # token changed -> restarted
+        await asyncio.sleep(0.05)
+        assert started == [1, 1]
+        sup.cancel()
+    asyncio.run(run())

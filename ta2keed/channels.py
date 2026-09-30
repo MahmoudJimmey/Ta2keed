@@ -158,6 +158,21 @@ async def handle_tg_callback(c, cq: dict) -> dict | None:
     return out
 
 
+async def telegram_supervisor(check_every: float = 5.0) -> None:
+    """Run the Telegram poller whenever a bot token is configured, including one pasted into the wizard
+    later, and restart it when the token changes. No app restart needed."""
+    task, token = None, None
+    while True:
+        cur = settings.telegram_bot_token or None
+        if cur != token:
+            if task:
+                task.cancel()
+            task, token = (asyncio.create_task(telegram_loop()) if cur else None), cur
+        elif task and task.done() and cur:
+            task = asyncio.create_task(telegram_loop())
+        await asyncio.sleep(check_every)
+
+
 async def telegram_loop() -> None:
     if not settings.telegram_bot_token:
         return
