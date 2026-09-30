@@ -1,0 +1,36 @@
+{
+  "name": "Ta2keed",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "hostRequirements": {
+    "cpus": 2
+  },
+  "postCreateCommand": "pip install --disable-pip-version-check -q -r requirements.txt",
+  "postAttachCommand": {
+    "ta2keed": "python scripts/codespace.py"
+  },
+  "forwardPorts": [
+    8000
+  ],
+  "portsAttributes": {
+    "8000": {
+      "label": "Ta2keed",
+      "onAutoForward": "silent"
+    }
+  },
+  "containerEnv": {
+    "TA2KEED_DATA_DIR": "/workspaces/ta2keed-data",
+    "PORT": "8000"
+  },
+  "customizations": {
+    "codespaces": {
+      "openFiles": [
+        "docs/CODESPACES.md"
+      ]
+    },
+    "vscode": {
+      "extensions": [
+        "ms-python.python"
+      ]
+    }
+  }
+}

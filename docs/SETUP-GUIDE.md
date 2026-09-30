@@ -14,6 +14,10 @@ This guide assumes no technical background. Follow the steps in order. Each step
 
 > **Just want to see the demo?** Do Part 1, choose **▶ Just show me the demo**, and press **Play**. No accounts or keys needed.
 
+> 💡 **Don't want to install Python?** Two options with nothing to install:
+> - **Try it in your browser, free:** GitHub Codespaces. Open the repo → green **Code** button → **Codespaces** → **Create codespace on main**, then Ctrl+Click the link that appears in the terminal. Full steps: [CODESPACES.md](CODESPACES.md). Then continue at **Part 2**.
+> - **Real shop, always on:** skip straight to **[Part 6 (Render)](#part-6--put-it-online-247)**. It runs on Render's servers, not your PC.
+
 ---
 
 ## Part 1 · Download and start it
@@ -243,6 +247,7 @@ Open **/setup** (the **Settings** tab on the dashboard). Changes apply immediate
 
 ## ملخص سريع بالعربي
 
+0. **مش عايز تسطّب Python؟** افتح صفحة المشروع على GitHub ← زرار **Code** الأخضر ← **Codespaces** ← **Create codespace**، واستنى دقيقتين، واضغط Ctrl+Click على اللينك اللي هيظهر. أو للمحل الحقيقي 24 ساعة: Render (الجزء 6).
 1. نزّل Python من python.org، ووانت بتسطّبه **علّم على "Add python.exe to PATH"**.
 2. من صفحة GitHub: **Code ← Download ZIP**، وبعدها فك الضغط (Extract All).
 3. دبل كليك على **run.bat** وسيب الشباك الأسود مفتوح. هيفتحلك معالج الإعداد لوحده.

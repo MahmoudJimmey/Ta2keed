@@ -79,3 +79,43 @@ def test_customer_export_and_erase(client):
     assert db.customer("01122223333") is None
     ev = db.one("SELECT data FROM events WHERE type='customer_erased'")
     assert json.loads(ev["data"])["orders_anonymised"] == 1
+
+
+def test_requests_through_a_proxy_are_not_treated_as_local(monkeypatch):
+    """Codespaces/Cloudflare/Render forward from 127.0.0.1: they must still need the setup token / password."""
+    from fastapi.testclient import TestClient
+    from ta2keed.server import app
+    monkeypatch.delenv("ADMIN_PASSWORD", raising=False)
+    monkeypatch.setenv("TA2KEED_AUTH", "on")
+    with TestClient(app) as c:
+        assert c.get("/api/orders").status_code == 200                       # really on this computer
+        r = c.get("/api/orders", headers={"X-Forwarded-For": "41.33.1.2", "X-Forwarded-Host": "x-8000.app.github.dev"})
+        assert r.status_code == 401
+        from ta2keed import auth
+        tok = auth.setup_token()
+        r = c.get(f"/setup?token={tok}", headers={"X-Forwarded-For": "41.33.1.2"})
+        assert r.status_code == 200
+
+
+def test_codespaces_public_url_is_detected_and_allowed_as_origin(monkeypatch):
+    from ta2keed.config import settings
+    from ta2keed import security
+    monkeypatch.delenv("PUBLIC_URL", raising=False)
+    monkeypatch.setenv("CODESPACE_NAME", "shiny-train-abc")
+    monkeypatch.setenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN", "app.github.dev")
+    assert settings.public_url == "https://shiny-train-abc-8000.app.github.dev"
+
+    class Req:
+        headers = {"origin": "https://shiny-train-abc-8000.app.github.dev", "host": "localhost:8000"}
+    assert security._same_origin(Req())
+    Req.headers = {"origin": "https://evil.example", "host": "localhost:8000"}
+    assert not security._same_origin(Req())
+
+
+def test_rate_limit_ip_cannot_be_spoofed_with_forwarded_for():
+    from ta2keed import security
+
+    class Req:
+        headers = {"x-forwarded-for": "1.2.3.4, 41.33.1.2"}
+        client = None
+    assert security.client_ip(Req()) == "41.33.1.2"

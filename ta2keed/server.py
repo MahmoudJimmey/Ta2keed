@@ -33,6 +33,7 @@ def _banner() -> None:
         log.info(" Ta2keed is running. First-time setup:")
         log.info("   on this computer:  http://localhost:8000/setup")
         log.info("   from anywhere:     %s/setup?token=%s", base, auth.setup_token())
+        log.info("   (keep this link private: whoever opens it first can set the owner password)")
         log.info("=" * 70)
 
 

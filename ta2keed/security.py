@@ -16,8 +16,10 @@ LOGIN_WINDOW, LOGIN_MAX = 15 * 60, 8
 
 
 def client_ip(request: Request) -> str:
+    # the LAST entry is the one added by our own proxy (Render/Cloudflare/Codespaces); earlier entries can be
+    # forged by the client, so they must not be used for rate limiting
     fwd = request.headers.get("x-forwarded-for")
-    return fwd.split(",")[0].strip() if fwd else (request.client.host if request.client else "?")
+    return fwd.split(",")[-1].strip() if fwd else (request.client.host if request.client else "?")
 
 
 def login_blocked(ip: str) -> bool:
@@ -40,8 +42,12 @@ def _same_origin(request: Request) -> bool:
     origin = request.headers.get("origin") or request.headers.get("referer")
     if not origin:
         return True  # non-browser clients (curl, webhooks)
-    host = request.headers.get("x-forwarded-host") or request.headers.get("host", "")
-    return origin.split("//", 1)[-1].split("/", 1)[0] == host
+    o = origin.split("//", 1)[-1].split("/", 1)[0].lower()
+    hosts = {(request.headers.get("x-forwarded-host") or "").lower(), request.headers.get("host", "").lower()}
+    from .config import settings
+    if settings.public_url:  # e.g. the Codespaces / Render / tunnel address
+        hosts.add(settings.public_url.split("//", 1)[-1].split("/", 1)[0].lower())
+    return o in hosts - {""}
 
 
 async def middleware(request: Request, call_next):

@@ -37,6 +37,15 @@ On top of that, **around 1 in 4 COD parcels is refused at the door**. The shop p
 
 > 📘 **New here or not technical?** Follow the illustrated, step-by-step **[Setup guide](docs/SETUP-GUIDE.md)**: install, wizard, Telegram, WhatsApp, Bosta and going online 24/7, with troubleshooting and an Arabic summary.
 
+## No Python? Run it online in your browser
+
+| | Try it / demo (free) | Real shop, 24/7 (~$7/month) |
+|---|---|---|
+| | [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/MahmoudJimmey/Ta2keed?quickstart=1) | [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/MahmoudJimmey/Ta2keed) |
+| How | Click, wait ~2 min, then Ctrl+Click the link printed in the terminal ([guide](docs/CODESPACES.md)) | Click, **Apply**, log in with the generated password ([guide](docs/SETUP-GUIDE.md#part-6--put-it-online-247)) |
+| Needs | A free GitHub account | GitHub + Render accounts, a card |
+| Stays on? | Pauses after ~30 min idle | Always on, data on a persistent disk |
+
 ## Run it in under 5 minutes (no API keys needed)
 
 ```bash

@@ -125,6 +125,14 @@ def source_of(env_key: str) -> str:
     return "default"
 
 
+def _auto_public_url() -> str:
+    """Public https address when running in GitHub Codespaces (so webhook URLs in /setup are right)."""
+    name, dom = os.environ.get("CODESPACE_NAME"), os.environ.get("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN")
+    if name and dom:
+        return f"https://{name}-{os.environ.get('PORT', '8000')}.{dom}"
+    return os.environ.get("RENDER_EXTERNAL_URL", "")
+
+
 class Settings:
     """Live view over env > wizard > defaults. Tests may monkeypatch attributes directly."""
 
@@ -147,6 +155,8 @@ class Settings:
                 v = decrypt(v, data_dir())
         if name == "llm_provider":
             return (v or "offline").lower()
+        if name == "public_url" and not v:
+            return _auto_public_url()
         return v
 
     def __setattr__(self, name, value):

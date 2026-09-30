@@ -82,9 +82,16 @@ def valid_session(val: str | None) -> bool:
     return hmac.compare_digest(sig, good) and exp.isdigit() and int(exp) > time.time()
 
 
+PROXY_HEADERS = ("x-forwarded-for", "x-forwarded-host", "forwarded", "cf-connecting-ip", "x-real-ip")
+
+
 def is_local(request: Request) -> bool:
+    """True only for a browser on THIS machine. Anything arriving through a proxy or tunnel (Cloudflare,
+    Codespaces, Render) also connects from 127.0.0.1, so a forwarding header means 'from the internet'."""
     host = request.client.host if request.client else ""
-    return host in LOCAL_HOSTS
+    if host not in LOCAL_HOSTS:
+        return False
+    return not any(h in request.headers for h in PROXY_HEADERS)
 
 
 def auth_enabled() -> bool:
