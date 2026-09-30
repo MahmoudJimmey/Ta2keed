@@ -124,7 +124,10 @@ web/        WhatsApp-style chat + owner dashboard (vanilla JS)
 data/       store.json (shop profile + economics), customers_seed.json, demo receipts
 scripts/    simulate.py (CLI demo), make_receipts.py (regenerate demo receipts)
 tests/      pytest suite
-docs/       screenshot, impact slides
+docs/       screenshot, impact slides (Ta2keed-impact-slides.pptx / .pdf)
+            regenerate after editing economics: python -m scripts.make_slides
 ```
+
+📑 **Impact slides:** [docs/Ta2keed-impact-slides.pdf](docs/Ta2keed-impact-slides.pdf)
 
 MIT License.
