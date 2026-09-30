@@ -102,7 +102,7 @@ def reset(seed: bool = True) -> None:
 
 def seed_customers() -> None:
     """Demo purchase history (the SME's past COD outcomes)."""
-    path = Path(settings.store_path).with_name("customers_seed.json")
+    path = Path(__file__).resolve().parent.parent / "data" / "customers_seed.json"
     if not path.exists():
         return
     for c in json.loads(path.read_text(encoding="utf-8")):

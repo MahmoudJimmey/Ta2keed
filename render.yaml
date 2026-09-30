@@ -1,0 +1,21 @@
+# One-click deploy on Render: https://render.com/deploy?repo=https://github.com/MahmoudJimmey/Ta2keed
+# Starter plan (~$7/month) is needed for the persistent disk that keeps orders + settings across restarts.
+# (Free plan works for a quick try, but it sleeps after 15 min and forgets data on every restart.)
+services:
+  - type: web
+    name: ta2keed
+    runtime: docker
+    plan: starter
+    region: frankfurt          # closest Render region to Egypt
+    healthCheckPath: /health
+    disk:
+      name: ta2keed-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: TA2KEED_DATA_DIR
+        value: /data
+      - key: ADMIN_PASSWORD      # shown in Render → Environment; use it to log in, then change it in /setup
+        generateValue: true
+      - key: DEMO_MODE
+        value: "on"

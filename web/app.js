@@ -151,6 +151,7 @@ function dlCell(o) {
     <div class="muted small">${o.tracking || ""}</div>`;
 }
 function dlButtons(o) {
+  if (window.DEMO_OFF && !["mock", "own"].includes(window.COURIER)) return "auto (courier)";
   if (!o.delivery_status || ["delivered", "refused", "returned", "cancelled"].includes(o.delivery_status)) return "—";
   return `<div class="dl"><button onclick="courier('${o.id}','advance')">next step ▸</button>
     <button class="bad" onclick="courier('${o.id}','delivery_failed')">failed</button>
@@ -158,6 +159,7 @@ function dlButtons(o) {
 }
 
 async function refresh() {
+  if (document.hidden) return;
   const [imp, orders, events, digest] = await Promise.all([
     fetch("/api/impact").then(r => r.json()), fetch("/api/orders").then(r => r.json()), fetch("/api/events?limit=150").then(r => r.json()),
     fetch("/api/digest").then(r => r.text())]);
@@ -224,8 +226,17 @@ async function refresh() {
 
 (async () => {
   const h = await (await fetch("/health")).json();
+  window.COURIER = h.courier;
   $("#health").textContent = `LLM: ${h.llm} · courier: ${h.courier}${h.telegram ? " · telegram ✓" : ""}${h.whatsapp ? " · whatsapp ✓" : ""}`;
   $("#ownerVia").textContent = "delivered to: " + h.owner_channels.join(", ");
+  if (!h.demo) { document.querySelectorAll(".demo-only").forEach(el => el.style.display = "none"); window.DEMO_OFF = true; }
+  if (!/localhost|127\.0\.0\.1/.test(location.host)) { $("#logout").style.display = ""; }
+  $("#logout").onclick = async () => { await fetch("/logout", { method: "POST" }); location.href = "/login"; };
+  try {
+    const st = await (await fetch("/api/impact")).json();
+    $("#storeName").textContent = st.store.name_ar || st.store.name;
+    $("#storeInitial").textContent = (st.store.agent_name_ar || st.store.name_ar || "ت").slice(0, 1);
+  } catch (e) { /* ignore */ }
   await loadScenarios();
   refresh();
   const auto = new URLSearchParams(location.search).get("autoplay");

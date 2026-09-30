@@ -10,23 +10,37 @@ import json
 import logging
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import aftercare, agent, channels, db, delivery, impact, notify, scheduler
+from . import aftercare, agent, auth, channels, db, delivery, impact, notify, scheduler, setup
 from .config import ROOT, settings, store
 from .scenarios import SCENARIOS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+log = logging.getLogger("ta2keed")
 WEB = ROOT / "web"
+
+
+def _banner() -> None:
+    base = settings.public_url.rstrip("/") if settings.public_url else "http://localhost:8000"
+    if settings.admin_password:
+        log.info("Ta2keed ready → %s  (dashboard login required)", base)
+    else:
+        log.info("=" * 70)
+        log.info(" Ta2keed is running. First-time setup:")
+        log.info("   on this computer:  http://localhost:8000/setup")
+        log.info("   from anywhere:     %s/setup?token=%s", base, auth.setup_token())
+        log.info("=" * 70)
 
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     db.conn()
-    if not db.one("SELECT phone FROM customers LIMIT 1"):
+    if settings.demo and not db.one("SELECT phone FROM customers LIMIT 1"):
         db.seed_customers()
+    _banner()
     tasks = []
     if settings.telegram_bot_token:
         tasks.append(asyncio.create_task(channels.telegram_loop()))
@@ -39,6 +53,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Ta2keed — COD order-confirmation agent", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=WEB), name="static")
+app.middleware("http")(auth.middleware)
+
+
+def _demo_only():
+    if not settings.demo:
+        raise HTTPException(403, "Demo tools are off (DEMO_MODE=off). Turn them on in /setup → Go live.")
 
 
 class ChatIn(BaseModel):
@@ -51,7 +71,105 @@ class ChatIn(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 def home():
+    if not setup.wizard_values().get("_setup_complete") and not setup.wizard_values().get("_setup_skipped"):
+        return RedirectResponse("/setup", status_code=303)
     return (WEB / "index.html").read_text(encoding="utf-8")
+
+
+# ---------------- login + setup wizard
+@app.get("/login", response_class=HTMLResponse)
+def login_page():
+    return (WEB / "login.html").read_text(encoding="utf-8")
+
+
+class LoginIn(BaseModel):
+    password: str
+
+
+@app.post("/login")
+def login(body: LoginIn):
+    if not auth.check_password(body.password):
+        raise HTTPException(401, "Wrong password")
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse({"ok": True})
+    resp.set_cookie(auth.COOKIE, auth.make_session(), max_age=auth.MAX_AGE, httponly=True, samesite="lax")
+    return resp
+
+
+@app.post("/logout")
+def logout():
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(auth.COOKIE)
+    return resp
+
+
+@app.get("/setup", response_class=HTMLResponse)
+def setup_page():
+    return (WEB / "setup.html").read_text(encoding="utf-8")
+
+
+@app.get("/api/setup/state")
+def setup_state(request: Request):
+    return setup.state(str(request.base_url))
+
+
+@app.post("/api/setup/save")
+async def setup_save(request: Request):
+    try:
+        res = setup.save(await request.json())
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    from fastapi.responses import JSONResponse
+    resp = JSONResponse(res)
+    if "ADMIN_PASSWORD" in res["saved"]:  # log the owner straight in after creating the password
+        resp.set_cookie(auth.COOKIE, auth.make_session(), max_age=auth.MAX_AGE, httponly=True, samesite="lax")
+    return resp
+
+
+@app.post("/api/setup/products-csv")
+async def setup_products_csv(request: Request):
+    text = (await request.body()).decode("utf-8", "replace")
+    prods = setup.parse_products_csv(text)
+    if not prods:
+        raise HTTPException(400, "No products found. First row must be headers: name_ar,name_en,price,sizes,colors")
+    return {"products": prods}
+
+
+@app.get("/api/setup/products-template.csv")
+def setup_products_template():
+    rows = "name_ar,name_en,price,sizes,colors,keywords,upsell_sku,upsell_price\n"
+    for p in store()["products"]:
+        up = p.get("upsell") or {}
+        rows += (f"{p['name_ar']},{p['name_en']},{p['price']},{' / '.join(p['sizes'])},{' / '.join(p['colors'])},"
+                 f"{' / '.join(p['keywords'])},{up.get('sku', '')},{up.get('price', '')}\n")
+    return StreamingResponse(iter(["\ufeff" + rows]), media_type="text/csv",
+                             headers={"Content-Disposition": "attachment; filename=products.csv"})
+
+
+class TestIn(BaseModel):
+    to: str | None = None
+    url: str | None = None
+    create: bool = False
+
+
+@app.post("/api/setup/test/{what}")
+def setup_test(what: str, body: TestIn | None = None, request: Request = None):
+    body = body or TestIn()
+    fn = {"llm": setup.test_llm, "whatsapp": setup.test_whatsapp, "telegram": setup.test_telegram,
+          "bosta": setup.test_bosta,
+          "whatsapp-send": lambda: setup.test_whatsapp_send(body.to),
+          "templates": lambda: setup.whatsapp_templates(body.create),
+          "public-url": lambda: setup.test_public_url(body.url or setup.public_url(str(request.base_url))),
+          "digest": lambda: {"ok": True, "message": "Sent via " + ", ".join(notify.send_digest()["via"])}}.get(what)
+    if not fn:
+        raise HTTPException(404)
+    return fn()
+
+
+@app.get("/api/setup/secret")
+def setup_secret():
+    return {"value": setup.generate_secret()}
 
 
 @app.get("/health")
@@ -60,7 +178,8 @@ def health():
             "whatsapp": bool(settings.wa_access_token), "telegram": bool(settings.telegram_bot_token),
             "courier": "bosta" if settings.bosta_api_key else "mock", "scheduler": settings.scheduler_enabled,
             "owner_channels": [c for c, on in (("telegram", settings.owner_telegram_chat_id),
-                                               ("whatsapp", settings.owner_whatsapp)) if on] or ["dashboard"]}
+                                               ("whatsapp", settings.owner_whatsapp)) if on] or ["dashboard"],
+            "demo": settings.demo, "shop": store()["store"]["name"]}
 
 
 @app.post("/api/chat")
@@ -74,12 +193,15 @@ def chat(body: ChatIn):
 
 @app.post("/api/reset")
 def reset():
+    _demo_only()
     db.reset(seed=True)
     return {"ok": True}
 
 
 @app.get("/api/scenarios")
 def scenarios():
+    if not settings.demo:
+        return {}
     return {k: {"title": v["title"], "steps": v["steps"]} for k, v in SCENARIOS.items()}
 
 
@@ -160,6 +282,8 @@ class DeliveryIn(BaseModel):
 @app.post("/api/orders/{order_id}/advance")
 def order_advance(order_id: str):
     """Mock courier: move the parcel one step (created → picked up → in transit → out for delivery → delivered)."""
+    if settings.bosta_api_key and not settings.demo:
+        raise HTTPException(403, "Real courier connected — updates come from Bosta.")
     o = delivery.find_order(order_id)
     if not o:
         raise HTTPException(404)
@@ -212,6 +336,7 @@ def scheduled():
 @app.post("/api/followups/fast-forward")
 def followups_fast_forward(order_id: str | None = None, kind: str | None = None):
     """Demo: send pending review/reorder messages now instead of in 24h / 14 days."""
+    _demo_only()
     return {"sent": aftercare.fast_forward(order_id, kind)}
 
 

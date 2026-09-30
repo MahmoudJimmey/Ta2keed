@@ -10,18 +10,20 @@
 <header>
   <div class="brand"><span class="logo">✓</span> <b>Ta2keed</b> <span class="muted">تأكيد — the COD order agent for Egyptian social-commerce shops</span></div>
   <div class="actions">
-    <select id="scenario"></select>
-    <button id="play" class="primary">▶ Play demo</button>
-    <button id="reset">Reset</button>
+    <select id="scenario" class="demo-only"></select>
+    <button id="play" class="primary demo-only">▶ Play demo</button>
+    <button id="reset" class="demo-only">Reset</button>
     <span id="health" class="pill"></span>
+    <a href="/setup" class="small" style="color:#9db4ff">⚙ Setup</a>
+    <button id="logout" class="mini" style="display:none">Log out</button>
   </div>
 </header>
 
 <main>
   <section class="phone">
-    <div class="wa-top"><div class="avatar">ن</div><div><b id="storeName">نور بوتيك</b><div class="muted small">AI assistant · online</div></div></div>
+    <div class="wa-top"><div class="avatar" id="storeInitial">ن</div><div><b id="storeName">نور بوتيك</b><div class="muted small">AI assistant · online · <span id="chatNote">try it as a customer</span></div></div></div>
     <div id="chat" class="chat" dir="rtl"></div>
-    <div class="receipts" id="receipts">
+    <div class="receipts demo-only" id="receipts">
       <span class="muted small">Send receipt:</span>
       <button data-r="receipt_ok.png">✅ valid</button>
       <button data-r="receipt_wrong_account.png">⚠️ wrong account</button>
@@ -51,7 +53,7 @@
       </div>
       <div class="card">
         <div class="card-h"><b>Daily summary</b>
-          <span><button id="ff" class="mini" title="Send the 24h review + 14-day reorder messages now">⏩ Follow-ups</button>
+          <button id="ff" class="mini demo-only" title="Send the 24h review + 14-day reorder messages now">⏩ Follow-ups</button>
           <button id="sendDigest" class="mini">Send now</button></span></div>
         <pre id="digest" class="digest" dir="rtl"></pre>
       </div>

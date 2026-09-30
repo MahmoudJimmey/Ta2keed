@@ -151,7 +151,17 @@ async def telegram_loop() -> None:
                     if not m:
                         continue
                     chat = str(m["chat"]["id"])
-                    if chat == settings.owner_telegram_chat_id and (m.get("text") or "").startswith("/"):
+                    text0 = (m.get("text") or "").strip()
+                    if text0.startswith("/owner"):  # claim owner alerts: /owner <code shown in the setup wizard>
+                        from .config import save_wizard_values
+                        from .setup import owner_claim_code
+                        ok = text0.split()[-1] == owner_claim_code()
+                        if ok:
+                            save_wizard_values({"OWNER_TELEGRAM_CHAT_ID": chat})
+                        await tg_call(c, "sendMessage", chat_id=chat, text="✅ تمام! هتوصلك التنبيهات والملخص اليومي هنا."
+                                      if ok else "الكود غلط — خديه من صفحة الإعداد في Ta2keed.")
+                        continue
+                    if chat == settings.owner_telegram_chat_id and text0.startswith("/"):
                         await tg_call(c, "sendMessage", chat_id=chat, text=notify.owner_command(m["text"]))
                         continue
                     if m.get("photo"):

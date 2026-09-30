@@ -377,6 +377,9 @@ def handle(channel: str, user_id: str, text: str = "", *, image: bytes | None = 
         if awaiting.startswith(("size:", "color:")):
             sc = nlu.extract_size_color(t)
             sku = awaiting.split(":")[1]
+            num = re.search(r"(?<!\d)(\d{2})(?!\d)", t)
+            if num and num.group(1) in (product(sku) or {}).get("sizes", []):
+                sc["size"] = num.group(1)
             for it in d.get("items", []):
                 if it["sku"] == sku:
                     p = product(sku)

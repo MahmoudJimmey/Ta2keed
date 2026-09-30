@@ -145,7 +145,12 @@ def extract_items(t: str) -> list[dict]:
     for start, p in hits:
         seg = _segment(t, start, starts)
         item = {"sku": p["sku"], "qty": _qty_before(t, start), "size": None, "color": None}
-        if p["sizes"]:
+        numeric = [s for s in p["sizes"] if s.isdigit()]
+        if numeric:
+            m = re.search(r"(?<!\d)(\d{2})(?!\d)", seg)
+            if m and m.group(1) in numeric:
+                item["size"] = m.group(1)
+        if p["sizes"] and not item["size"] and not numeric:
             for k, v in sorted(SIZES.items(), key=lambda kv: -len(kv[0])):
                 if re.search(rf"(?<![\w\u0600-\u06FF]){re.escape(k)}(?![\w\u0600-\u06FF])", seg):
                     item["size"] = v

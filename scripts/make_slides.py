@@ -289,7 +289,7 @@ for i, (k, v) in enumerate(rows):
     y = 2.2 + i * 0.385
     text(s, 8.45, y, 2.55, 0.38, k, size=11, color=FG, anchor=MSO_ANCHOR.MIDDLE)
     text(s, 10.75, y, 1.85, 0.38, str(v), size=11.5, bold=True, color=GREEN, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
-text(s, 0.6, 6.55, 12.2, 0.4, "Runs in < 5 min with no API keys (./run.sh → ▶ Play demo)  ·  35 automated tests",
+text(s, 0.6, 6.55, 12.2, 0.4, "Runs in < 5 min with no API keys (./run.sh → ▶ Play demo)  ·  52 automated tests",
      size=12, color=MUTED)
 notes(s, "Numbers on the right are produced by the agent's own event log (/api/impact), not typed by hand.")
 
@@ -444,7 +444,7 @@ text(s, 0.85, 2.35, 5.6, 2.5, ["git clone https://github.com/MahmoudJimmey/Ta2ke
                                 "./run.sh        # Windows: run.bat",
                                 "# open http://localhost:8000  →  ▶ Play demo",
                                 "",
-                                "pytest -q       # 35 tests"], size=13, font="Consolas", color=FG, spacing=4)
+                                "pytest -q       # 52 tests"], size=13, font="Consolas", color=FG, spacing=4)
 text(s, 0.85, 4.75, 5.6, 1.7, ["No API keys, no accounts, no database server.",
                                 "Optional .env adds LLM, WhatsApp, Telegram, Bosta."], size=13, color=MUTED, spacing=4)
 box(s, 6.95, 1.75, 5.8, 4.8)

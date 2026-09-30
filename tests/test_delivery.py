@@ -186,7 +186,7 @@ def test_whatsapp_24h_window_uses_template_outside():
 def test_whatsapp_webhook_signature(monkeypatch):
     from ta2keed.config import settings
     from ta2keed.server import app
-    monkeypatch.setattr(settings, "wa_app_secret", "s3cret")
+    monkeypatch.setenv("WHATSAPP_APP_SECRET", "s3cret")
     body = json.dumps({"entry": []}).encode()
     sig = "sha256=" + hmac.new(b"s3cret", body, hashlib.sha256).hexdigest()
     with TestClient(app) as c:
@@ -223,7 +223,7 @@ def test_owner_whatsapp_commands(monkeypatch):
     import asyncio
     from ta2keed import channels
     from ta2keed.config import settings
-    monkeypatch.setattr(settings, "owner_whatsapp", "201000000001")
+    monkeypatch.setenv("OWNER_WHATSAPP", "201000000001")
     sent = []
 
     async def fake_send(to, text):

@@ -38,15 +38,38 @@ On top of that, **around 1 in 4 COD parcels is refused at the door**. The shop p
 ## Run it in under 5 minutes (no API keys needed)
 
 ```bash
-git clone <this repo> && cd Ta2keed
+git clone https://github.com/MahmoudJimmey/Ta2keed && cd Ta2keed
 ./run.sh           # Windows: run.bat
-# open http://localhost:8000 and press ▶ Play demo
 ```
+The browser opens the **setup wizard**. Choose **▶ Just show me the demo** to see the sample shop, then press **▶ Play demo**.
 
-Or with Docker:
+### Setup wizard (`/setup`)
+A step-by-step page that configures everything, no file editing needed:
+
+| Step | What you do |
+|---|---|
+| Owner login | Set a dashboard password (needed before going online). |
+| Your shop | Shop name, assistant name, InstaPay and Vodafone Cash accounts, deposit policy. |
+| Products | Edit in a table or **upload a CSV** (template provided): prices, sizes, colours, the words customers type, upsell pairs. |
+| Shipping | Fee per zone and the courier return fee. |
+| AI brain | One-click presets for Gemini, Claude, OpenAI, Groq and OpenRouter, with **Test connection**. Optional voice-note transcription. |
+| WhatsApp | Guided Meta setup, **Test connection**, **Send me a test message**, a ready-to-paste webhook URL, and **Create missing templates** (submits the 7 message templates to Meta and shows approval status). |
+| Alerts | Owner WhatsApp number and/or Telegram bot (link your Telegram with `/owner <code>`), daily summary time, follow-up delays. |
+| Courier | Demo, **Bosta** (key test + webhook URL + generated secret) or **own delivery person**. |
+| Business numbers | Your real orders, minutes per order and refusal rate, which drive the ROI. |
+| Go live | Where to run it, public URL test, checklist, demo tools on/off. |
+
+Changes apply instantly (no restart). Values set as host environment variables win and show as 🔒.
+
+### Where does it run?
+On your computer by default. `run.bat online` adds a free public https link (Cloudflare tunnel) so real WhatsApp messages reach your laptop. For a real shop, deploy 24/7 with one click on Render (`render.yaml`) or any Docker host. See **[docs/deploy.md](docs/deploy.md)**.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/MahmoudJimmey/Ta2keed)
+
+Or with Docker (data persists in the `ta2keed-data` volume):
 
 ```bash
-docker build -t ta2keed . && docker run -p 8000:8000 ta2keed
+docker build -t ta2keed . && docker run -p 8000:8000 -v ta2keed-data:/data ta2keed
 ```
 
 Or in the terminal only, without a browser:
@@ -90,9 +113,9 @@ With the default pilot assumptions (600 orders/month, 9 minutes of manual handli
 
 > ⚠️ Replace `economics` in `data/store.json` with your pilot shop's real numbers. The dashboard and report recompute automatically.
 
-## Going live (optional)
+## Configuration reference
 
-Copy `.env.example` to `.env` and fill in only what you need:
+Everything below can be set in the **setup wizard**. Alternatively, put the values in `.env` or in your host's environment variables:
 
 | Feature | Env vars |
 |---|---|
@@ -127,17 +150,19 @@ WhatsApp / Telegram / Web chat
 ## Tests
 
 ```bash
-pytest -q     # 35 tests: NLU, risk, payment fraud, end-to-end scenarios, API, prompt-injection,
-              # delivery highlights, refusal learning, follow-ups, daily summary, WhatsApp webhook/signature/24h rule
+pytest -q     # 52 tests: NLU, risk, payment fraud, end-to-end scenarios, API, prompt-injection,
+              # delivery highlights, refusal learning, follow-ups, daily summary, WhatsApp webhook/signature/24h rule,
+              # setup wizard, settings precedence, owner login / one-time setup link
 ```
 
 ## Project layout
 
 ```
-ta2keed/    agent, nlu, llm, risk, payments, courier, channels, notify, impact, server
-web/        WhatsApp-style chat + owner dashboard (vanilla JS)
+ta2keed/    agent, nlu, llm, risk, payments, courier, delivery, aftercare, outbound, notify, scheduler,
+            channels, setup (wizard backend), auth (owner login), impact, server
+web/        WhatsApp-style chat + owner dashboard, setup wizard, login (vanilla JS)
 data/       store.json (shop profile + economics), customers_seed.json, demo receipts
-scripts/    simulate.py (CLI demo), make_receipts.py (regenerate demo receipts)
+scripts/    simulate.py (CLI demo), online.py (public tunnel), make_slides.py, make_receipts.py
 tests/      pytest suite
 docs/       screenshot, impact slides (Ta2keed-impact-slides.pptx / .pdf)
             regenerate after editing economics: python -m scripts.make_slides
