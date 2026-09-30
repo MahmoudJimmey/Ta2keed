@@ -62,6 +62,9 @@ Create them in **WhatsApp Manager → Message templates**, language **Arabic (ar
 | `ta2keed_reorder_offer` | Marketing | وحشتينا يا {{1}} 💕 خصم {{2}} على طلبك الجاي بكود {{3}} لمدة أسبوع. |
 | `ta2keed_owner_digest` | Utility | ملخص {{1}}: اتأكد {{2}} أوردر بقيمة {{3}} ج · اتسلم {{4}} · كاش {{5}} ج · رفض {{6}}. |
 | `ta2keed_owner_alert` | Utility | تنبيه Ta2keed: {{1}} |
+| `ta2keed_payment_check` | Utility, with 2 quick-reply buttons: "✅ وصل" / "❌ موصلش" | تأكيد تحويل: {{1}} بتقول إنها حولت {{2}} ج عربون لأوردر {{3}} (رقم العملية {{4}}). اتأكدي من التطبيق إن المبلغ وصل فعلاً قبل ما توافقي، الأوردر مش هيتشحن غير بعد ردك. |
+
+**Payment confirmations:** when a customer sends a deposit receipt that passes the automatic checks, the owner gets the screenshot and ✅/❌ buttons on WhatsApp (and Telegram). The owner can also just reply `تم 1234` or `لا 1234` using the 4-digit code in the message.
 
 Tip: send any message to the business number from the owner's phone once a day (for example `ملخص`). That keeps the owner's 24 h window open, so the full summary arrives as normal text instead of the short template.
 

@@ -69,13 +69,16 @@ def verify(order: dict, *, image: bytes | None = None, mime: str = "image/png", 
 
     def done(ok: bool, reason: str | None, fraud: bool = False):
         result.update(ok=ok, reason=reason, fraud=fraud)
-        db.x("INSERT INTO payments(order_id,reference,amount,image_hash,status,reason,raw,ts) VALUES(?,?,?,?,?,?,?,?)",
-             (order["id"], info.get("reference"), info.get("amount"), image_hash,
-              "verified" if ok else ("fraud" if fraud else "rejected"), reason,
-              json.dumps(info, ensure_ascii=False), time.time()))
+        result["payment_id"] = db.x(
+            "INSERT INTO payments(order_id,reference,amount,image_hash,status,reason,raw,ts) VALUES(?,?,?,?,?,?,?,?)",
+            (order["id"], info.get("reference"), info.get("amount"), image_hash,
+             "verified" if ok else ("fraud" if fraud else "rejected"), reason,
+             json.dumps(info, ensure_ascii=False), time.time()))
         return result
 
-    if image_hash and db.one("SELECT id FROM payments WHERE image_hash=? AND status='verified'", (image_hash,)):
+    # a screenshot/reference already used (verified OR waiting for the owner) can never pay a second order
+    USED = "status IN ('verified','pending_owner')"
+    if image_hash and db.one(f"SELECT id FROM payments WHERE image_hash=? AND {USED}", (image_hash,)):
         return done(False, "duplicate_screenshot", fraud=True)
     if info.get("_source") == "unreadable" or info.get("is_receipt") is False:
         return done(False, "not_a_receipt")
@@ -87,7 +90,7 @@ def verify(order: dict, *, image: bytes | None = None, mime: str = "image/png", 
     ref = re.sub(r"\D", "", str(info.get("reference") or ""))
     if not ref:
         return done(False, "missing_reference")
-    if db.one("SELECT id FROM payments WHERE reference=? AND status='verified'", (ref,)):
+    if db.one(f"SELECT id FROM payments WHERE reference=? AND {USED}", (ref,)):
         return done(False, "reference_already_used", fraud=True)
     info["reference"] = ref
 

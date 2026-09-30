@@ -97,7 +97,14 @@ async def wa_handle(payload: dict) -> None:
 
                 if _owner_wa(sender):  # the shop owner talks to the agent: commands + opens the 24h window
                     db.kv_set("owner_last_inbound", str(_t.time()))
-                    await wa_send(sender, notify.owner_command(_wa_text(msg)))
+                    from . import payconfirm
+                    cb = ""
+                    if kind == "button":
+                        cb = msg["button"].get("payload", "")
+                    elif kind == "interactive":
+                        cb = (msg["interactive"].get("button_reply") or {}).get("id", "")
+                    res = await asyncio.to_thread(payconfirm.handle_owner_reply, _wa_text(msg), cb, "owner-whatsapp")
+                    await wa_send(sender, res["message"] if res else notify.owner_command(_wa_text(msg)))
                     continue
                 try:
                     if kind in ("text", "button", "interactive"):
@@ -136,6 +143,21 @@ async def tg_file(c: httpx.AsyncClient, file_id: str) -> bytes:
     return (await c.get(f"https://api.telegram.org/file/bot{settings.telegram_bot_token}/{path}")).content
 
 
+async def handle_tg_callback(c, cq: dict) -> dict | None:
+    from . import payconfirm
+    owner = settings.owner_telegram_chat_id
+    is_owner = bool(owner) and str(cq.get("from", {}).get("id")) == owner
+    out = await asyncio.to_thread(payconfirm.handle_owner_reply, "", cq.get("data", ""), "owner-telegram") if is_owner else None
+    await tg_call(c, "answerCallbackQuery", callback_query_id=cq["id"],
+                  text=(out or {}).get("message", "مش مسموح — الزرار ده لصاحب المحل بس")[:190])
+    if out and cq.get("message"):
+        chat_id = cq["message"]["chat"]["id"]
+        await tg_call(c, "editMessageReplyMarkup", chat_id=chat_id, message_id=cq["message"]["message_id"],
+                      reply_markup={"inline_keyboard": []})
+        await tg_call(c, "sendMessage", chat_id=chat_id, text=out["message"])
+    return out
+
+
 async def telegram_loop() -> None:
     if not settings.telegram_bot_token:
         return
@@ -147,6 +169,10 @@ async def telegram_loop() -> None:
                 res = await tg_call(c, "getUpdates", offset=offset, timeout=50)
                 for upd in res.get("result", []):
                     offset = upd["update_id"] + 1
+                    cq = upd.get("callback_query")
+                    if cq:  # owner pressed a payment-confirmation button
+                        await handle_tg_callback(c, cq)
+                        continue
                     m = upd.get("message")
                     if not m:
                         continue
@@ -161,6 +187,12 @@ async def telegram_loop() -> None:
                         await tg_call(c, "sendMessage", chat_id=chat, text="✅ تمام! هتوصلك التنبيهات والملخص اليومي هنا."
                                       if ok else "الكود غلط — خديه من صفحة الإعداد في Ta2keed.")
                         continue
+                    if chat == settings.owner_telegram_chat_id and text0:
+                        from . import payconfirm
+                        out = await asyncio.to_thread(payconfirm.handle_owner_reply, text0, "", "owner-telegram")
+                        if out:
+                            await tg_call(c, "sendMessage", chat_id=chat, text=out["message"])
+                            continue
                     if chat == settings.owner_telegram_chat_id and text0.startswith("/"):
                         await tg_call(c, "sendMessage", chat_id=chat, text=notify.owner_command(m["text"]))
                         continue

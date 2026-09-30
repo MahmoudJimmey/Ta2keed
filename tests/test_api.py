@@ -30,7 +30,10 @@ def test_image_upload_via_api():
         assert r["state"] == "DEPOSIT"
         b64 = base64.b64encode((RECEIPTS / "receipt_ok.png").read_bytes()).decode()
         r = c.post("/api/chat", json={"user": "api-img", "image_b64": b64}).json()
-        assert r["state"] == "CONFIRMED"
+        assert r["state"] == "OWNER_CHECK"                       # screenshot alone never ships
+        chk = c.get("/api/payment-checks").json()[0]
+        c.post(f"/api/payment-checks/{chk['id']}/decide", json={"approve": True})
+        assert c.get("/api/orders").json()[0]["status"] == "shipped"
 
 
 def test_whatsapp_verify():

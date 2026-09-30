@@ -32,7 +32,15 @@ def _secret() -> bytes:
     f = data_dir() / ".session_secret"
     if not f.exists():
         f.write_text(secrets.token_hex(32), encoding="utf-8")
+        try:
+            os.chmod(f, 0o600)
+        except OSError:
+            pass
     return f.read_text(encoding="utf-8").strip().encode()
+
+
+def secure_cookie(request: Request) -> bool:
+    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
 
 
 def setup_token() -> str:
@@ -100,7 +108,8 @@ async def middleware(request: Request, call_next):
         resp = await call_next(request)
         tok = request.query_params.get("token")
         if tok and not settings.admin_password and hmac.compare_digest(tok, setup_token()):
-            resp.set_cookie("ta2keed_setup", tok, max_age=86400, httponly=True, samesite="lax")
+            resp.set_cookie("ta2keed_setup", tok, max_age=86400, httponly=True, samesite="strict",
+                            secure=secure_cookie(request))
         return resp
     if request.url.path.startswith("/api/"):
         return JSONResponse({"error": "login required"}, status_code=401)

@@ -17,5 +17,7 @@ services:
         value: /data
       - key: ADMIN_PASSWORD      # shown in Render → Environment; use it to log in, then change it in /setup
         generateValue: true
+      - key: TA2KEED_SECRET_KEY  # encrypts API keys/tokens saved by the wizard; kept off the data disk
+        generateValue: true
       - key: DEMO_MODE
         value: "on"

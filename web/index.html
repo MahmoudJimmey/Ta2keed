@@ -1,76 +1,111 @@
 <!doctype html>
-<html lang="ar">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ta2keed — COD order-confirmation agent</title>
+<meta name="theme-color" content="#f5f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<title>Ta2keed</title>
+<script src="/static/theme.js"></script>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header>
-  <div class="brand"><span class="logo">✓</span> <b>Ta2keed</b> <span class="muted">تأكيد — the COD order agent for Egyptian social-commerce shops</span></div>
-  <div class="actions">
-    <select id="scenario" class="demo-only"></select>
-    <button id="play" class="primary demo-only">▶ Play demo</button>
-    <button id="reset" class="demo-only">Reset</button>
-    <span id="health" class="pill"></span>
-    <a href="/setup" class="small" style="color:#9db4ff">⚙ Setup</a>
-    <button id="logout" class="mini" style="display:none">Log out</button>
+<nav class="topbar">
+  <div class="topbar-in">
+    <a class="wordmark" href="/"><span class="mark"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg></span>Ta2keed</a>
+    <div class="seg" id="seg">
+      <a href="#top" class="on">Overview</a><a href="#orders-sec">Orders</a><a href="#inbox-sec">Inbox</a><a href="/setup">Settings</a>
+    </div>
+    <div class="topbar-r">
+      <div class="status" id="health"></div>
+      <button class="icon-btn" id="theme" title="Light / dark" aria-label="Toggle appearance"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M16.5 12.2A7 7 0 1 1 7.8 3.5a5.6 5.6 0 0 0 8.7 8.7z"/></svg></button>
+      <button class="link-btn" id="logout" hidden>Log out</button>
+    </div>
   </div>
-</header>
+</nav>
 
-<main>
-  <section class="phone">
-    <div class="wa-top"><div class="avatar" id="storeInitial">ن</div><div><b id="storeName">نور بوتيك</b><div class="muted small">AI assistant · online · <span id="chatNote">try it as a customer</span></div></div></div>
-    <div id="chat" class="chat" dir="rtl"></div>
-    <div class="receipts demo-only" id="receipts">
-      <span class="muted small">Send receipt:</span>
-      <button data-r="receipt_ok.png">✅ valid</button>
-      <button data-r="receipt_wrong_account.png">⚠️ wrong account</button>
-      <button data-r="receipt_low_amount.png">💸 low amount</button>
-      <button data-r="receipt_failed.png">❌ failed</button>
-      <label class="upl">📎<input type="file" id="file" accept="image/*,audio/*" hidden></label>
+<main class="page" id="top">
+  <header class="page-h">
+    <div>
+      <p class="eyebrow" id="shopEyebrow">&nbsp;</p>
+      <h1>Today</h1>
+      <p class="sub" id="today"></p>
     </div>
-    <form id="form" class="composer">
-      <input id="msg" dir="rtl" autocomplete="off" placeholder="اكتبي رسالة… مثلاً: عايزة العباية الكريب مقاس L اسود">
-      <button class="send">➤</button>
-    </form>
-  </section>
+    <div class="demo-bar demo-only">
+      <span class="tag-demo">Demo</span>
+      <select id="scenario" aria-label="Demo scenario"></select>
+      <button id="play" class="btn btn-primary">Play</button>
+      <button id="reset" class="btn btn-quiet">Reset</button>
+    </div>
+  </header>
 
-  <section class="dash">
-    <div class="kpis" id="kpis"></div>
+  <section class="kpis" id="kpis"></section>
+  <div class="kpis-sub" id="kpisSub"></div>
 
-    <div class="card">
-      <div class="card-h"><b>Orders</b> <a href="/api/orders.csv" class="small">export CSV (Excel)</a></div>
-      <table id="orders"><thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Risk</th><th>Deposit</th><th>Delivery</th><th>Courier (mock)</th></tr></thead><tbody></tbody></table>
-      <div class="muted small" style="margin-top:6px">Delivery updates are all recorded here. The customer is only messaged on the highlights: <b>out for delivery</b>, <b>delivered</b>, <b>failed attempt</b>.</div>
+  <div class="layout">
+    <div class="col-main">
+      <section class="card pay-card" id="pay-sec" hidden>
+        <div class="card-h"><h2>Payments to confirm</h2><span class="sub">Check your bank or InstaPay app before approving</span></div>
+        <div id="payChecks" class="pay-list"></div>
+        <p class="foot">A screenshot can be edited, AI-generated or reused from an old transfer. Orders with a deposit ship only after you confirm the money arrived.
+          You can also answer from Telegram or WhatsApp.</p>
+      </section>
+
+      <section class="card" id="orders-sec">
+        <div class="card-h"><h2>Orders</h2><div class="actions"><a href="/api/orders.csv" class="small">Export to Excel</a></div></div>
+        <div class="tbl-wrap">
+          <table id="orders"><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Refusal risk</th><th>Deposit</th><th>Delivery</th><th id="thActions">Courier</th></tr></thead><tbody></tbody></table>
+        </div>
+        <p class="foot">Every courier update is recorded here. Customers only hear the highlights: out for delivery, delivered, failed attempt.</p>
+      </section>
+
+      <div class="grid2" id="inbox-sec">
+        <section class="card">
+          <div class="card-h"><h2>Needs you</h2><span class="sub" id="ownerVia"></span></div>
+          <ul id="owner" class="events"></ul>
+        </section>
+        <section class="card">
+          <div class="card-h"><h2>Daily summary</h2>
+            <div class="actions"><button id="ff" class="mini demo-only" title="Send the 24-hour rating and 14-day reorder messages now">Skip ahead</button>
+            <button id="sendDigest" class="mini">Send now</button></div></div>
+          <pre id="digest" class="digest" dir="rtl"></pre>
+        </section>
+      </div>
+
+      <div class="grid2">
+        <section class="card">
+          <div class="card-h"><h2>Monthly impact</h2><span class="sub">projection · <a href="/setup">edit numbers</a></span></div>
+          <div id="roi"></div>
+        </section>
+        <section class="card">
+          <div class="card-h"><h2>Activity</h2><span class="sub">every action is logged</span></div>
+          <ul id="events" class="events"></ul>
+        </section>
+      </div>
     </div>
 
-    <div class="grid2">
-      <div class="card">
-        <div class="card-h"><b>Owner inbox</b> <span class="muted small" id="ownerVia"></span></div>
-        <ul id="owner" class="events"></ul>
-      </div>
-      <div class="card">
-        <div class="card-h"><b>Daily summary</b>
-          <button id="ff" class="mini demo-only" title="Send the 24h review + 14-day reorder messages now">⏩ Follow-ups</button>
-          <button id="sendDigest" class="mini">Send now</button></span></div>
-        <pre id="digest" class="digest" dir="rtl"></pre>
-      </div>
-    </div>
-
-    <div class="grid2">
-      <div class="card">
-        <div class="card-h"><b>Monthly impact for this SME</b> <span class="muted small">projection · edit data/store.json</span></div>
-        <div id="roi"></div>
-      </div>
-      <div class="card">
-        <div class="card-h"><b>Agent activity</b> <span class="muted small">every action is logged</span></div>
-        <ul id="events" class="events"></ul>
-      </div>
-    </div>
-  </section>
+    <aside class="col-side">
+      <div class="phone"><div class="screen">
+        <div class="wa-top"><div class="avatar" id="storeInitial">ن</div><b id="storeName" dir="auto">&nbsp;</b><span class="muted">Assistant · replies instantly</span></div>
+        <div id="chat" class="chat" dir="rtl" aria-live="polite"></div>
+        <div class="receipts demo-only" id="receipts">
+          <span class="lbl">Send receipt</span>
+          <button data-r="receipt_ok.png">Valid</button>
+          <button data-r="receipt_wrong_account.png">Wrong account</button>
+          <button data-r="receipt_low_amount.png">Low amount</button>
+          <button data-r="receipt_failed.png">Failed</button>
+          <label class="upl">Attach…<input type="file" id="file" accept="image/*,audio/*" hidden></label>
+        </div>
+        <form id="form" class="composer">
+          <input id="msg" dir="rtl" autocomplete="off" placeholder="اكتبي رسالة… مثلاً: عايزة العباية مقاس L اسود" aria-label="Message">
+          <button class="send" aria-label="Send"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5"/></svg></button>
+        </form>
+      </div></div>
+      <p class="side-note">What your customer sees on WhatsApp. Try ordering.</p>
+    </aside>
+  </div>
 </main>
+<div id="toast" role="status"></div>
 <script src="/static/app.js"></script>
 </body>
 </html>

@@ -32,7 +32,7 @@ It prints something like `https://brave-lion-1234.trycloudflare.com`. That addre
 ### Render (one click)
 1. Click **https://render.com/deploy?repo=https://github.com/MahmoudJimmey/Ta2keed** (sign in with GitHub).
 2. Render reads `render.yaml`: Docker, Frankfurt region, a 1 GB disk for orders and settings, and a generated `ADMIN_PASSWORD`.
-3. When it's live, open **Environment** in Render, copy `ADMIN_PASSWORD`, go to `https://<your-app>.onrender.com/setup` and log in.
+3. When it's live, open **Environment** in Render, copy `ADMIN_PASSWORD`, go to `https://<your-app>.onrender.com/setup` and log in. `TA2KEED_SECRET_KEY` (the key that encrypts your API tokens) is generated there too. Keep a copy somewhere safe.
 4. Finish the wizard. The webhook URLs it shows are already correct.
 
 > The Starter plan (~$7/month) is needed for the persistent disk. On the free plan the app sleeps after 15 minutes (WhatsApp messages wake it, but the first reply is slow) and **loses its data on every restart**.
@@ -54,6 +54,7 @@ Same Docker command, plus a free HTTPS proxy such as Caddy (`caddy reverse-proxy
 ---
 
 ## Security when online
+Full details: [security.md](security.md).
 - The dashboard and wizard require the **owner password** once the server is reachable from outside.
 - Started online **without** a password? The server log prints a one-time link `…/setup?token=…`. Only someone with access to the logs can claim the server, and the first wizard step sets the password.
 - `/webhook/whatsapp` checks Meta's signature (set the App secret in the wizard). Courier webhooks check `COURIER_WEBHOOK_SECRET`.

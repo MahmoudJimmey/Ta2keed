@@ -32,6 +32,11 @@ from ta2keed import aftercare, delivery  # noqa: E402
 
 for sc in SCENARIOS.values():
     for step in sc["steps"]:
+        if "owner" in step:
+            from ta2keed import payconfirm
+            for c in payconfirm.pending():
+                payconfirm.decide(c["id"], step["owner"] == "approve", by="slides")
+            continue
         if "courier" in step or "followups" in step:
             conv = db.get_conversation("slides", sc["user"])
             oid = conv.get("order_id") or (db.one("SELECT id FROM orders WHERE conv_id=? ORDER BY created_at DESC LIMIT 1",
@@ -221,7 +226,7 @@ steps = [("1", "Understand", "Arabic / Franco / voice → items, size, colour, n
          ("3", "Upsell", "Offers a matching item at a small discount"),
          ("4", "Score risk", "Explainable COD-refusal score with reasons"),
          ("5", "Deposit", "Risky orders pay 100 EGP via InstaPay / Vodafone Cash"),
-         ("6", "Verify", "Receipt fraud checks: recipient, amount, status, re-use"),
+         ("6", "Verify", "Auto receipt checks, then owner taps ✅ (money arrived)"),
          ("7", "Ship", "Books Bosta, sends tracking & amount due"),
          ("8", "Report", "Live dashboard, CSV, Telegram daily digest")]
 for i, (n, t, d) in enumerate(steps):
@@ -269,7 +274,7 @@ notes(s, "Key point for judges: fewer messages, not more. 4 courier updates -> 2
          "And every refusal makes the risk engine smarter for that shop.")
 
 # ================================================================ 6. proof: live demo
-s = base(6, "Does it work?", f"A live agent: {len(SCENARIOS)} real conversations, zero human touches")
+s = base(6, "Does it work?", f"A live agent: {len(SCENARIOS)} real conversations, one tap from the owner")
 shot = ROOT / "docs" / "screenshot.png"
 if shot.exists():
     pic = s.shapes.add_picture(str(shot), Inches(0.6), Inches(1.7), width=Inches(7.3))
@@ -282,14 +287,14 @@ rows = [("Conversations handled", M["conversations"]), ("Orders auto-confirmed &
         ("Delivered / cash collected", f"{M['orders_delivered']} ({M['cash_collected_egp']:,} EGP)"),
         ("Courier updates → customer msgs", f"{M['courier_updates_received']} → {M['customer_highlight_msgs']}"),
         ("Rating · repeat orders", f"{M['avg_rating'] or '—'} · {M['repeat_orders']}"),
-        ("Human minutes spent", M["human_minutes_spent"])]
+        ("Owner taps (deposit confirmed)", "1")]
 box(s, 8.2, 1.7, 4.55, 4.75)
 text(s, 8.45, 1.8, 4.1, 0.4, "Measured in the demo run", size=14, bold=True, color=GREEN)
 for i, (k, v) in enumerate(rows):
     y = 2.2 + i * 0.385
     text(s, 8.45, y, 2.55, 0.38, k, size=11, color=FG, anchor=MSO_ANCHOR.MIDDLE)
     text(s, 10.75, y, 1.85, 0.38, str(v), size=11.5, bold=True, color=GREEN, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
-text(s, 0.6, 6.55, 12.2, 0.4, "Runs in < 5 min with no API keys (./run.sh → ▶ Play demo)  ·  52 automated tests",
+text(s, 0.6, 6.55, 12.2, 0.4, "Runs in < 5 min with no API keys (./run.sh → ▶ Play demo)  ·  71 automated tests",
      size=12, color=MUTED)
 notes(s, "Numbers on the right are produced by the agent's own event log (/api/impact), not typed by hand.")
 
@@ -367,8 +372,8 @@ text(s, 8.85, 2.35, 3.7, 4.2, [
 s = base(9, "Why this agent, not a chatbot", "Built for the Egyptian market and for money-safety")
 items = [("🗣️", "Speaks the customer's language", "Egyptian Arabic, Franco-Arabic, Arabic-Indic digits, voice notes, "
           "Egyptian areas → shipping zones"),
-         ("💳", "Local payment rails", "InstaPay & Vodafone Cash deposits with screenshot fraud checks (wrong account, "
-          "low amount, failed, reused)"),
+         ("💳", "Local payment rails", "InstaPay & Vodafone Cash deposits: auto fraud checks (wrong account, low amount, reused) "
+          "+ owner taps ✅ on Telegram/WhatsApp before anything ships"),
          ("🛡️", "Can't be talked into losses", "Prices, totals, deposits and shipments are code, not LLM output — "
           "prompt-injection test included"),
          ("🔍", "Explainable decisions", "Every risk score lists its reasons; every action is logged and visible to "
@@ -444,7 +449,7 @@ text(s, 0.85, 2.35, 5.6, 2.5, ["git clone https://github.com/MahmoudJimmey/Ta2ke
                                 "./run.sh        # Windows: run.bat",
                                 "# open http://localhost:8000  →  ▶ Play demo",
                                 "",
-                                "pytest -q       # 52 tests"], size=13, font="Consolas", color=FG, spacing=4)
+                                "pytest -q       # 71 tests"], size=13, font="Consolas", color=FG, spacing=4)
 text(s, 0.85, 4.75, 5.6, 1.7, ["No API keys, no accounts, no database server.",
                                 "Optional .env adds LLM, WhatsApp, Telegram, Bosta."], size=13, color=MUTED, spacing=4)
 box(s, 6.95, 1.75, 5.8, 4.8)
@@ -455,7 +460,7 @@ for i, sc in enumerate(SCENARIOS.values()):
 # ================================================================ 12. risks & mitigations
 s = base(13, "Honest limitations", "What could go wrong — and how we handle it")
 rows = [("Rules miss an unusual message", "Falls back to the LLM when configured; always asks instead of guessing; owner sees every order"),
-        ("Fake receipts get more sophisticated", "Checks recipient, amount, status, duplicate reference & image hash; flags edited-looking screenshots; owner alert"),
+        ("Fake receipts get more sophisticated", "Checks recipient, amount, status, duplicate reference & image hash; then the OWNER confirms the money arrived in the bank app before shipping (AI-made or recycled screenshots can't pass)"),
         ("Deposit annoys good customers", "Only the riskiest ~30% are asked; trusted repeat buyers get a lower score automatically"),
         ("Risk weights are generic", "Transparent weights; calibrate on each shop's own delivered/refused history"),
         ("WhatsApp API needs Meta approval", "Telegram + web chat work today; WhatsApp webhook is implemented and ready")]

@@ -4,7 +4,10 @@
     "name_ar": "نور بوتيك",
     "city": "Cairo",
     "currency": "EGP",
-    "business_hours": [10, 22],
+    "business_hours": [
+      10,
+      22
+    ],
     "agent_name_ar": "نور"
   },
   "policy": {
@@ -13,27 +16,61 @@
     "high_value_order_egp": 1500,
     "instapay_handle": "nourboutique@instapay",
     "vodafone_cash": "010 0000 0000",
-    "delivery_days": "2-4"
+    "delivery_days": "2-4",
+    "owner_payment_confirmation": true,
+    "owner_confirm_reminders_min": [
+      30,
+      180
+    ]
   },
   "shipping": {
     "zones": {
-      "cairo": {"fee": 60, "label_ar": "القاهرة"},
-      "giza": {"fee": 60, "label_ar": "الجيزة"},
-      "alex": {"fee": 75, "label_ar": "الإسكندرية"},
-      "delta": {"fee": 80, "label_ar": "الدلتا"},
-      "canal": {"fee": 80, "label_ar": "القناة"},
-      "upper": {"fee": 95, "label_ar": "الصعيد"}
+      "cairo": {
+        "fee": 60,
+        "label_ar": "القاهرة"
+      },
+      "giza": {
+        "fee": 60,
+        "label_ar": "الجيزة"
+      },
+      "alex": {
+        "fee": 75,
+        "label_ar": "الإسكندرية"
+      },
+      "delta": {
+        "fee": 80,
+        "label_ar": "الدلتا"
+      },
+      "canal": {
+        "fee": 80,
+        "label_ar": "القناة"
+      },
+      "upper": {
+        "fee": 95,
+        "label_ar": "الصعيد"
+      }
     },
     "return_fee": 45
   },
   "notifications": {
     "_comment": "Customer only hears about the highlights; everything else goes to the dashboard + owner digest.",
-    "customer_highlights": ["out_for_delivery", "delivered", "delivery_failed"],
-    "owner_instant_alerts": ["refused", "delivery_failed", "returned", "low_rating", "reschedule_requested", "fraud"],
+    "customer_highlights": [
+      "out_for_delivery",
+      "delivered",
+      "delivery_failed"
+    ],
+    "owner_instant_alerts": [
+      "refused",
+      "delivery_failed",
+      "returned",
+      "low_rating",
+      "reschedule_requested",
+      "fraud"
+    ],
     "digest_time": "21:00",
     "review_after_hours": 24,
     "reorder_after_days": 14,
-    "reorder_discount": 0.10
+    "reorder_discount": 0.1
   },
   "whatsapp_templates": {
     "_comment": "Used only when the customer's last message is older than 24h (WhatsApp rule). Register these in Meta (see docs/whatsapp-templates.md).",
@@ -44,7 +81,8 @@
     "review": "ta2keed_review_request",
     "reorder": "ta2keed_reorder_offer",
     "owner_digest": "ta2keed_owner_digest",
-    "owner_alert": "ta2keed_owner_alert"
+    "owner_alert": "ta2keed_owner_alert",
+    "payment_check": "ta2keed_payment_check"
   },
   "economics": {
     "_comment": "Replace with your pilot SME's measured numbers. These drive the impact report.",
@@ -62,10 +100,29 @@
       "name_ar": "عباية كريب سادة",
       "name_en": "Crepe Abaya",
       "price": 890,
-      "sizes": ["S", "M", "L", "XL"],
-      "colors": ["black", "navy", "beige"],
-      "keywords": ["عباية", "عبايه", "عبايات", "abaya", "abaia", "3abaya"],
-      "upsell": {"sku": "NB-HIJ-01", "price": 120}
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "colors": [
+        "black",
+        "navy",
+        "beige"
+      ],
+      "keywords": [
+        "عباية",
+        "عبايه",
+        "عبايات",
+        "abaya",
+        "abaia",
+        "3abaya"
+      ],
+      "upsell": {
+        "sku": "NB-HIJ-01",
+        "price": 120
+      }
     },
     {
       "sku": "NB-HIJ-01",
@@ -73,8 +130,20 @@
       "name_en": "Chiffon Hijab",
       "price": 150,
       "sizes": [],
-      "colors": ["black", "beige", "pink", "navy"],
-      "keywords": ["طرحة", "طرحه", "طرح", "حجاب", "hijab", "tar7a"],
+      "colors": [
+        "black",
+        "beige",
+        "pink",
+        "navy"
+      ],
+      "keywords": [
+        "طرحة",
+        "طرحه",
+        "طرح",
+        "حجاب",
+        "hijab",
+        "tar7a"
+      ],
       "upsell": null
     },
     {
@@ -82,10 +151,28 @@
       "name_ar": "طقم بيتي قطن",
       "name_en": "Cotton Home Set",
       "price": 450,
-      "sizes": ["M", "L", "XL"],
-      "colors": ["pink", "navy", "olive"],
-      "keywords": ["طقم", "بيجامة", "بيجامه", "بيجاما", "pajama", "set"],
-      "upsell": {"sku": "NB-SOC-01", "price": 70}
+      "sizes": [
+        "M",
+        "L",
+        "XL"
+      ],
+      "colors": [
+        "pink",
+        "navy",
+        "olive"
+      ],
+      "keywords": [
+        "طقم",
+        "بيجامة",
+        "بيجامه",
+        "بيجاما",
+        "pajama",
+        "set"
+      ],
+      "upsell": {
+        "sku": "NB-SOC-01",
+        "price": 70
+      }
     },
     {
       "sku": "NB-BAG-01",
@@ -93,19 +180,48 @@
       "name_en": "Crossbody Bag",
       "price": 520,
       "sizes": [],
-      "colors": ["black", "beige"],
-      "keywords": ["شنطة", "شنطه", "شنط", "bag", "cross", "كروس"],
-      "upsell": {"sku": "NB-WAL-01", "price": 180}
+      "colors": [
+        "black",
+        "beige"
+      ],
+      "keywords": [
+        "شنطة",
+        "شنطه",
+        "شنط",
+        "bag",
+        "cross",
+        "كروس"
+      ],
+      "upsell": {
+        "sku": "NB-WAL-01",
+        "price": 180
+      }
     },
     {
       "sku": "NB-DRS-01",
       "name_ar": "فستان صيفي",
       "name_en": "Summer Dress",
       "price": 690,
-      "sizes": ["S", "M", "L"],
-      "colors": ["white", "pink", "olive"],
-      "keywords": ["فستان", "فساتين", "dress", "fostan"],
-      "upsell": {"sku": "NB-HIJ-01", "price": 120}
+      "sizes": [
+        "S",
+        "M",
+        "L"
+      ],
+      "colors": [
+        "white",
+        "pink",
+        "olive"
+      ],
+      "keywords": [
+        "فستان",
+        "فساتين",
+        "dress",
+        "fostan"
+      ],
+      "upsell": {
+        "sku": "NB-HIJ-01",
+        "price": 120
+      }
     },
     {
       "sku": "NB-SOC-01",
@@ -114,7 +230,11 @@
       "price": 90,
       "sizes": [],
       "colors": [],
-      "keywords": ["شراب", "شرابات", "socks"],
+      "keywords": [
+        "شراب",
+        "شرابات",
+        "socks"
+      ],
       "upsell": null
     },
     {
@@ -123,8 +243,15 @@
       "name_en": "Leather Wallet",
       "price": 220,
       "sizes": [],
-      "colors": ["black", "beige"],
-      "keywords": ["محفظة", "محفظه", "wallet"],
+      "colors": [
+        "black",
+        "beige"
+      ],
+      "keywords": [
+        "محفظة",
+        "محفظه",
+        "wallet"
+      ],
       "upsell": null
     }
   ]

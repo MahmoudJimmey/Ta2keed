@@ -24,6 +24,17 @@ def run(name: str) -> None:
     sc = SCENARIOS[name]
     print(f"\n{'=' * 70}\n▶ {name}: {sc['title']}\n{'=' * 70}")
     for step in sc["steps"]:
+        if "owner" in step:
+            from ta2keed import payconfirm
+            conv = db.get_conversation("sim", sc["user"])
+            before = db.one("SELECT MAX(id) m FROM messages WHERE conv_id=?", (conv["id"],))["m"] or 0
+            for c in payconfirm.pending():
+                print(f"\n👩‍💼 [owner gets the receipt on Telegram/WhatsApp, checks the bank app → presses "
+                      f"{'✅ received' if step['owner'] == 'approve' else '❌ not received'}]")
+                print("   " + payconfirm.decide(c["id"], step["owner"] == "approve", by="sim")["message"])
+            for m in db.q("SELECT text FROM messages WHERE conv_id=? AND id>? AND role='agent'", (conv["id"], before)):
+                print("🤖 " + m["text"].replace("\n", "\n   "))
+            continue
         if "courier" in step or "followups" in step:
             conv = db.get_conversation("sim", sc["user"])
             oid = conv.get("order_id") or (db.one("SELECT id FROM orders WHERE conv_id=? ORDER BY created_at DESC LIMIT 1",

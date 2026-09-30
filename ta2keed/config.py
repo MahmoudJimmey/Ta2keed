@@ -70,6 +70,13 @@ FIELDS: dict[str, tuple[str, str, bool]] = {
 _lock = threading.RLock()
 
 
+def secure_file(f: Path) -> None:
+    try:
+        os.chmod(f, 0o600)
+    except OSError:
+        pass
+
+
 def settings_file() -> Path:
     return data_dir() / "settings.json"
 
@@ -84,13 +91,19 @@ def wizard_values() -> dict:
         return {}
 
 
+SECRET_KEYS = {key for key, _, secret in FIELDS.values() if secret}
+
+
 def save_wizard_values(updates: dict) -> dict:
-    """Merge updates into settings.json (None/'' removes a key). Returns the new dict."""
+    """Merge updates into settings.json (None/'' removes a key). Secrets are encrypted at rest."""
+    from .crypto import encrypt
     with _lock:
         cur = wizard_values()
         for k, v in updates.items():
             if v is None or v == "":
                 cur.pop(k, None)
+            elif k in SECRET_KEYS and k != "ADMIN_PASSWORD":  # password is already a one-way hash
+                cur[k] = encrypt(str(v), data_dir())
             else:
                 cur[k] = v if isinstance(v, (dict, list, bool)) else str(v)
         f = settings_file()
@@ -125,10 +138,13 @@ class Settings:
             return str(custom) if custom.exists() else str(ROOT / "data" / "store.json")
         if name not in FIELDS:
             raise AttributeError(name)
-        key, default, _ = FIELDS[name]
+        key, default, secret = FIELDS[name]
         v = os.environ.get(key)
         if v is None:
             v = wizard_values().get(key, default)
+            if secret:
+                from .crypto import decrypt
+                v = decrypt(v, data_dir())
         if name == "llm_provider":
             return (v or "offline").lower()
         return v

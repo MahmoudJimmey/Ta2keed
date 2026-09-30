@@ -26,7 +26,7 @@ On top of that, **around 1 in 4 COD parcels is refused at the door**. The shop p
 | 3. Upsell | Offers a matching item at a small discount (for example abaya → hijab for 120 EGP instead of 150). Every offer and response is logged. |
 | 4. Score risk | Gives an explainable COD-refusal score based on past refusals, whether the customer is new, how vague the address is, order value, hesitation ("هفكر") and long-haul zones. |
 | 5. De-risk | Risky orders are asked for a **100 EGP InstaPay / Vodafone Cash deposit** before shipping. |
-| 6. Verify payment | Reads the receipt screenshot (with a vision LLM, or offline from demo metadata). Checks the amount, recipient, status, **reused reference numbers** and **reused screenshots**. |
+| 6. Verify payment | **Layer 1, automatic:** reads the receipt screenshot (with a vision LLM, or offline from demo metadata) and checks the amount, recipient, status, **reused reference numbers** and **reused screenshots**. **Layer 2, owner:** a screenshot can be AI-made or an old transfer, so the owner gets the receipt on Telegram/WhatsApp with ✅ Received / ❌ Not received buttons (plus reminders). **Nothing ships until the owner confirms the money arrived.** |
 | 7. Ship | Books the courier (Bosta API, or a built-in mock) and sends the customer the tracking number and the amount due on delivery. |
 | 8. Track delivery | Courier updates (Bosta webhook, generic webhook, or the owner's own driver) move the order along: picked up → in transit → out for delivery → delivered / refused. **The customer only hears the highlights** (out for delivery with the exact cash to prepare, delivered, failed attempt → "when should we come back?"). Everything else stays on the dashboard. |
 | 9. Learn | A delivered or refused parcel updates the customer's history, so the next order's risk score reflects it and the refusal rate is **measured, not projected**. |
@@ -83,7 +83,7 @@ python -m scripts.simulate --chat   # talk to the agent yourself
 The four demo scenarios (the dropdown in the UI):
 
 1. **Happy path.** A messy Arabic order goes through upsell → confirmation → auto-shipped.
-2. **Risky order.** A first-time customer with a vague address hesitates, so a deposit is requested. A **wrong-account receipt is caught**, then a valid one is accepted and the order ships.
+2. **Risky order.** A first-time customer with a vague address hesitates, so a deposit is requested. A **wrong-account receipt is caught**, then a valid-looking one goes to the **owner for confirmation**. The owner taps "Received" and the order ships.
 3. **Known refuser.** A customer with 3 past refusals is asked for a deposit and refuses. **The parcel is never shipped**, so shipping and return fees are saved.
 4. **Questions first.** The customer asks about shipping and prices, then orders.
 5. **Full journey.** Order → courier updates (only 2 of 4 reach the customer) → delivered → ⭐ rating → reorder offer → repeat order.
@@ -150,9 +150,10 @@ WhatsApp / Telegram / Web chat
 ## Tests
 
 ```bash
-pytest -q     # 52 tests: NLU, risk, payment fraud, end-to-end scenarios, API, prompt-injection,
+pytest -q     # 71 tests: NLU, risk, payment fraud, end-to-end scenarios, API, prompt-injection,
               # delivery highlights, refusal learning, follow-ups, daily summary, WhatsApp webhook/signature/24h rule,
-              # setup wizard, settings precedence, owner login / one-time setup link
+              # setup wizard, settings precedence, owner login / one-time setup link,
+              # secrets encryption, CSRF/headers/rate-limit, backup, customer erase, owner payment confirmation
 ```
 
 ## Project layout
@@ -169,5 +170,7 @@ docs/       screenshot, impact slides (Ta2keed-impact-slides.pptx / .pdf)
 ```
 
 📑 **Impact slides:** [docs/Ta2keed-impact-slides.pdf](docs/Ta2keed-impact-slides.pdf)
+
+🔒 **Security & data:** where everything is stored, encryption, login protection, the payment-fraud layers, customer export/erase and backups are covered in [docs/security.md](docs/security.md).
 
 MIT License.

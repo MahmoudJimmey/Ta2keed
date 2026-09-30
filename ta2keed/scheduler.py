@@ -21,7 +21,9 @@ def digest_due(now: dt.datetime | None = None) -> bool:
 
 def tick(now: dt.datetime | None = None) -> dict:
     now = now or dt.datetime.now()
-    out = {"followups": aftercare.run_due(now.timestamp()), "digest": None}
+    from . import payconfirm
+    out = {"followups": aftercare.run_due(now.timestamp()), "digest": None,
+           "payment_reminders": payconfirm.remind_due(now.timestamp())}
     if digest_due(now):
         out["digest"] = notify.send_digest(now.date())
         db.kv_set("last_digest_date", now.date().isoformat())

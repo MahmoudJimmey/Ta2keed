@@ -12,6 +12,11 @@ def run(name):
     for step in sc["steps"]:
         if "courier" in step or "followups" in step:
             continue
+        if "owner" in step:
+            from ta2keed import payconfirm
+            for c in payconfirm.pending():
+                out.append([payconfirm.decide(c["id"], step["owner"] == "approve", by="test")["message"]])
+            continue
         if "image" in step:
             out.append(agent.handle("test", sc["user"], image=(RECEIPTS / step["image"]).read_bytes()))
         else:
@@ -78,7 +83,8 @@ def test_risky_order_blocks_fake_receipt_then_accepts_real():
     replies = run("risky_deposit")
     o = db.one("SELECT * FROM orders")
     assert o["deposit_required"] == 1 and o["deposit_paid"] == 100 and o["status"] == "shipped"
-    assert "مش على حسابنا" in replies[-2][0]
+    assert "مش على حسابنا" in replies[-3][0]
+    assert "بنراجع" in replies[-2][0]            # valid receipt -> waits for the owner, doesn't ship yet
     assert db.one("SELECT COUNT(*) n FROM payments WHERE status='fraud'")["n"] == 1
 
 

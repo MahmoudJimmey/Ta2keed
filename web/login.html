@@ -3,30 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ta2keed — Log in</title>
+<title>Sign in · Ta2keed</title>
+<script src="/static/theme.js"></script>
 <link rel="stylesheet" href="/static/style.css">
 <style>
-  .login{max-width:360px;margin:12vh auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px}
-  .login input{width:100%;background:#11141a;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:11px;font:inherit;margin:14px 0}
-  .login button{width:100%;background:var(--acc);color:#000;border:0;font-weight:600;padding:11px}
-  .err{color:#ff9b9b;font-size:13px;min-height:18px;margin-top:8px}
+  .login{max-width:380px;margin:14vh auto 0;padding:0 20px;text-align:center}
+  .login .mark{width:56px;height:56px;border-radius:16px;margin:0 auto 22px}
+  .login .mark svg{width:28px;height:28px}
+  .login h1{font-size:32px;font-weight:600}
+  .login p{color:var(--ink-2);margin:8px 0 28px}
+  .login input{width:100%;background:var(--surface);border:1px solid var(--line-2);color:var(--ink);border-radius:12px;padding:14px 16px;font-size:16px;outline:none}
+  .login input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+  .login .btn{width:100%;margin-top:12px;padding:13px;font-size:16px}
+  .err{color:var(--bad);font-size:13.5px;min-height:20px;margin-top:12px}
 </style>
 </head>
 <body>
 <form class="login" id="f">
-  <div class="brand" style="font-size:20px"><span class="logo">✓</span> <b>Ta2keed</b></div>
-  <div class="muted small" style="margin-top:6px">Owner dashboard</div>
-  <input type="password" id="pw" placeholder="Password" autofocus autocomplete="current-password">
-  <button>Log in</button>
-  <div class="err" id="err"></div>
+  <div class="mark"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg></div>
+  <h1>Sign in to Ta2keed</h1>
+  <p>Your orders, payments and customers.</p>
+  <input type="password" id="pw" placeholder="Password" autofocus autocomplete="current-password" aria-label="Password">
+  <button class="btn btn-primary">Continue</button>
+  <div class="err" id="err" role="alert"></div>
 </form>
 <script>
 document.getElementById("f").onsubmit = async e => {
   e.preventDefault();
   const r = await fetch("/login", { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ password: document.getElementById("pw").value }) });
-  if (r.ok) location.href = new URLSearchParams(location.search).get("next") || "/";
-  else document.getElementById("err").textContent = "Wrong password";
+  if (r.ok) { const n = new URLSearchParams(location.search).get("next") || "/"; location.href = n.startsWith("/") ? n : "/"; }
+  else document.getElementById("err").textContent = r.status === 429 ? "Too many attempts. Try again in 15 minutes." : "Incorrect password.";
 };
 </script>
 </body>

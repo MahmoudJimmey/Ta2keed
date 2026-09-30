@@ -13,7 +13,7 @@ import json
 import re
 import time
 
-from . import courier, db, llm, nlu, payments, risk
+from . import courier, db, llm, nlu, payconfirm, payments, risk
 from .config import product, store
 
 QUESTION_HINTS = ["بكام", "كام", "سعر", "امتي", "امتى", "فين", "ازاي", "هل", "ينفع", "متاح", "موجود",
@@ -285,6 +285,9 @@ def handle(channel: str, user_id: str, text: str = "", *, image: bytes | None = 
 
     if text and nlu.is_cancel(text) and state != "NEW":
         if conv.get("order_id"):
+            db.x("UPDATE payment_checks SET status='void', decided_at=?, decided_by='customer_cancelled' "
+                 "WHERE order_id=? AND status='pending'", (time.time(), conv["order_id"]))
+        if conv.get("order_id"):
             db.x("UPDATE orders SET status='cancelled', updated_at=? WHERE id=?", (time.time(), conv["order_id"]))
         conv["state"] = "CANCELLED"
         db.log_event(conv["id"], "cancelled", {"stage": state}, conv.get("order_id"))
@@ -293,12 +296,24 @@ def handle(channel: str, user_id: str, text: str = "", *, image: bytes | None = 
     if text and nlu.hesitation(text):
         d["hesitation"] = True
 
+    # ---------------- waiting for the owner to confirm the transfer
+    if state == "OWNER_CHECK":
+        if image is not None:
+            return _reply(conv, ["وصلني 👍 لسه بنراجع التحويل الأول، ولو محتاجين حاجة تانية هقولك."])
+        return _reply(conv, ["بنراجع وصول التحويل على حسابنا ⏳ أول ما يتأكد هبعتلك رقم الشحنة فوراً."])
+
     # ---------------- deposit stage
     if state == "DEPOSIT":
         order = db.one("SELECT * FROM orders WHERE id=?", (conv["order_id"],))
         if image is not None or nlu.extract_receipt_text(text).get("reference"):
             res = payments.verify(order, image=image, mime=image_mime, text=None if image else text)
             db.log_event(conv["id"], "deposit_checked", {k: res[k] for k in ("ok", "reason", "fraud")}, order["id"])
+            if res["ok"] and payconfirm.enabled():
+                # screenshots can be faked or recycled -> the owner confirms the money really arrived
+                payconfirm.start(order, conv["id"], res["payment_id"], res["info"], image, image_mime)
+                conv["state"] = "OWNER_CHECK"
+                return _reply(conv, ["استلمنا الإيصال 🙏 بنراجع وصول التحويل على حسابنا دلوقتي، "
+                                     "وهبعتلك رقم الشحنة أول ما يتأكد (عادةً خلال دقايق في مواعيد العمل)."])
             if res["ok"]:
                 amt = int(float(res["info"].get("amount") or store()["policy"]["deposit_amount"]))
                 db.x("UPDATE orders SET deposit_paid=?, status='confirmed' WHERE id=?", (amt, order["id"]))

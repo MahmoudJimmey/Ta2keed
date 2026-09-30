@@ -8,13 +8,14 @@ import csv
 import io
 import json
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import aftercare, agent, auth, channels, db, delivery, impact, notify, scheduler, setup
+from . import aftercare, agent, auth, channels, db, delivery, impact, notify, payconfirm, scheduler, security, setup
 from .config import ROOT, settings, store
 from .scenarios import SCENARIOS
 
@@ -54,6 +55,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Ta2keed — COD order-confirmation agent", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=WEB), name="static")
 app.middleware("http")(auth.middleware)
+app.middleware("http")(security.middleware)  # registered last = runs first
 
 
 def _demo_only():
@@ -87,12 +89,20 @@ class LoginIn(BaseModel):
 
 
 @app.post("/login")
-def login(body: LoginIn):
+def login(body: LoginIn, request: Request):
+    ip = security.client_ip(request)
+    if security.login_blocked(ip):
+        raise HTTPException(429, "Too many attempts. Try again in 15 minutes.")
     if not auth.check_password(body.password):
+        security.login_failed(ip)
+        db.log_event(None, "login_failed", {"ip": ip})
         raise HTTPException(401, "Wrong password")
+    security.login_ok(ip)
+    db.log_event(None, "login", {"ip": ip})
     from fastapi.responses import JSONResponse
     resp = JSONResponse({"ok": True})
-    resp.set_cookie(auth.COOKIE, auth.make_session(), max_age=auth.MAX_AGE, httponly=True, samesite="lax")
+    resp.set_cookie(auth.COOKIE, auth.make_session(), max_age=auth.MAX_AGE, httponly=True, samesite="strict",
+                    secure=auth.secure_cookie(request))
     return resp
 
 
@@ -123,8 +133,64 @@ async def setup_save(request: Request):
     from fastapi.responses import JSONResponse
     resp = JSONResponse(res)
     if "ADMIN_PASSWORD" in res["saved"]:  # log the owner straight in after creating the password
-        resp.set_cookie(auth.COOKIE, auth.make_session(), max_age=auth.MAX_AGE, httponly=True, samesite="lax")
+        resp.set_cookie(auth.COOKIE, auth.make_session(), max_age=auth.MAX_AGE, httponly=True, samesite="strict",
+                        secure=auth.secure_cookie(request))
     return resp
+
+
+# ---------------- data ownership: backup, export, erase
+@app.get("/api/admin/backup")
+def admin_backup():
+    """Download everything (database + shop profile + encrypted settings) as one zip."""
+    import zipfile
+    from .config import data_dir
+    buf = io.BytesIO()
+    import sqlite3
+    import tempfile
+    snap_dir = tempfile.mkdtemp()
+    snap = Path(snap_dir) / "snapshot.db"
+    dst = sqlite3.connect(snap)
+    db.conn().backup(dst)
+    dst.close()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.write(snap, "ta2keed.db")
+        for name in ("store.json", "settings.json"):
+            f = data_dir() / name
+            if f.exists():
+                z.write(f, name)
+        z.writestr("README.txt", "Ta2keed backup. settings.json secrets are encrypted with your master key "
+                                 "(.master.key or TA2KEED_SECRET_KEY), which is NOT included for safety.")
+    import shutil
+    shutil.rmtree(snap_dir, ignore_errors=True)
+    import datetime as _dt
+    return StreamingResponse(iter([buf.getvalue()]), media_type="application/zip", headers={
+        "Content-Disposition": f"attachment; filename=ta2keed-backup-{_dt.date.today()}.zip"})
+
+
+@app.get("/api/admin/customer/{phone}")
+def admin_customer_export(phone: str):
+    """Everything stored about one customer (data-subject access request)."""
+    convs = db.q("SELECT id, channel, created_at FROM conversations WHERE user_id LIKE ? OR id IN "
+                 "(SELECT conv_id FROM orders WHERE customer_phone=?)", (f"%{phone[-10:]}", phone))
+    ids = [c["id"] for c in convs] or [-1]
+    marks = ",".join("?" * len(ids))
+    return {"customer": db.customer(phone), "orders": db.q("SELECT * FROM orders WHERE customer_phone=?", (phone,)),
+            "messages": db.q(f"SELECT conv_id, role, text, ts FROM messages WHERE conv_id IN ({marks})", tuple(ids))}
+
+
+@app.delete("/api/admin/customer/{phone}")
+def admin_customer_erase(phone: str):
+    """Right to erasure: anonymise orders (keeps totals for accounting) and delete messages/history."""
+    convs = [r["conv_id"] for r in db.q("SELECT DISTINCT conv_id FROM orders WHERE customer_phone=?", (phone,))]
+    convs += [r["id"] for r in db.q("SELECT id FROM conversations WHERE user_id LIKE ?", (f"%{phone[-10:]}",))]
+    for cid in set(c for c in convs if c):
+        db.x("DELETE FROM messages WHERE conv_id=?", (cid,))
+        db.x("DELETE FROM conversations WHERE id=?", (cid,))
+    n = db.one("SELECT COUNT(*) n FROM orders WHERE customer_phone=?", (phone,))["n"]
+    db.x("UPDATE orders SET customer_name='[erased]', customer_phone='[erased]', address='[erased]' WHERE customer_phone=?", (phone,))
+    db.x("DELETE FROM customers WHERE phone=?", (phone,))
+    db.log_event(None, "customer_erased", {"orders_anonymised": n})
+    return {"ok": True, "orders_anonymised": n, "conversations_deleted": len(set(convs))}
 
 
 @app.post("/api/setup/products-csv")
@@ -326,6 +392,34 @@ async def bosta_webhook(request: Request):
         return {"ok": False, "error": "order not found"}  # 200 so Bosta doesn't retry forever
     return delivery.apply_update(o, p["status"], reason=p["reason"], source="bosta",
                                  cod_collected=int(p["cod"]) if p.get("cod") else None)
+
+
+# ---------------- owner payment confirmation (second layer after the screenshot checks)
+@app.get("/api/payment-checks")
+def payment_checks():
+    return payconfirm.pending()
+
+
+@app.get("/api/payment-checks/{check_id}/image")
+def payment_check_image(check_id: int):
+    c = payconfirm.get(check_id)
+    p = payconfirm.image_path(c) if c else None
+    if not p:
+        raise HTTPException(404)
+    return FileResponse(p)
+
+
+class DecisionIn(BaseModel):
+    approve: bool
+    note: str | None = None
+
+
+@app.post("/api/payment-checks/{check_id}/decide")
+def payment_check_decide(check_id: int, body: DecisionIn):
+    res = payconfirm.decide(check_id, body.approve, by="owner-dashboard", note=body.note)
+    if not res["ok"] and not res.get("already"):
+        raise HTTPException(400, res["message"])
+    return res
 
 
 @app.get("/api/scheduled")

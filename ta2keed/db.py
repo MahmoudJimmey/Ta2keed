@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS scheduled (
   kind TEXT, payload TEXT, due_at REAL, sent_at REAL, status TEXT DEFAULT 'pending'
 );
 CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
+CREATE TABLE IF NOT EXISTS payment_checks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT, payment_id INTEGER, conv_id INTEGER, code TEXT,
+  amount INTEGER, reference TEXT, info TEXT, image_file TEXT, status TEXT, asked_at REAL, decided_at REAL,
+  decided_by TEXT, note TEXT, reminders INTEGER DEFAULT 0
+);
 """
 
 # columns added after v1 (ALTERed in for existing databases)
@@ -61,8 +66,17 @@ def conn() -> sqlite3.Connection:
     with _lock:
         if _conn is None:
             Path(settings.db_path).parent.mkdir(parents=True, exist_ok=True)
+            new = not Path(settings.db_path).exists()
             _conn = sqlite3.connect(settings.db_path, check_same_thread=False)
             _conn.row_factory = sqlite3.Row
+            _conn.execute("PRAGMA journal_mode=WAL")      # safe concurrent reads, crash-resistant
+            _conn.execute("PRAGMA secure_delete=ON")      # erased customer data is overwritten, not just unlinked
+            if new:
+                try:
+                    import os as _os
+                    _os.chmod(settings.db_path, 0o600)
+                except OSError:
+                    pass
             _conn.executescript(SCHEMA)
             for table, col, typ in MIGRATIONS:
                 cols = {r[1] for r in _conn.execute(f"PRAGMA table_info({table})")}
@@ -92,7 +106,7 @@ def x(sql: str, args: tuple = ()) -> int:
 def reset(seed: bool = True) -> None:
     with _lock:
         c = conn()
-        for t in ("customers", "conversations", "messages", "orders", "payments", "events", "scheduled", "kv"):
+        for t in ("customers", "conversations", "messages", "orders", "payments", "events", "scheduled", "kv", "payment_checks"):
             c.execute(f"DELETE FROM {t}")
         c.execute("DELETE FROM sqlite_sequence")
         c.commit()

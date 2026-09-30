@@ -3,22 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ta2keed — Setup</title>
+<title>Settings · Ta2keed</title>
+<script src="/static/theme.js"></script>
 <link rel="stylesheet" href="/static/style.css">
 <link rel="stylesheet" href="/static/setup.css">
 </head>
 <body>
-<header>
-  <div class="brand"><span class="logo">✓</span> <b>Ta2keed</b> <span class="muted">setup wizard</span></div>
-  <div class="actions"><span id="where" class="pill"></span><a href="/" class="small" id="toDash">Dashboard →</a></div>
-</header>
-
+<nav class="topbar"><div class="topbar-in">
+  <a class="wordmark" href="/"><span class="mark"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg></span>Ta2keed</a>
+  <div class="seg"><a href="/">Overview</a><a href="/setup" class="on">Settings</a></div>
+  <div class="topbar-r"><span id="where" class="small muted"></span><a href="/" class="small" id="toDash">Open dashboard</a></div>
+</div></nav>
 <div class="wiz">
-  <nav id="nav"></nav>
-  <section id="panel" class="card"></section>
+  <nav id="nav" aria-label="Setup steps"></nav>
+  <section id="panel"></section>
 </div>
-
-<div id="toast"></div>
+<div id="toast" role="status"></div>
 <script src="/static/setup.js"></script>
 </body>
 </html>

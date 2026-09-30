@@ -14,7 +14,7 @@ SCENARIOS = {
         ],
     },
     "risky_deposit": {
-        "title": "Risky first-time order -> InstaPay deposit -> fake screenshot caught -> real one accepted",
+        "title": "Risky first-time order -> deposit -> fake receipt caught -> owner confirms real transfer -> shipped",
         "user": "demo-new",
         "steps": [
             {"text": "عايزة 2 فستان صيفي مقاس M بينك وشنطة كروس سودا"},
@@ -24,6 +24,7 @@ SCENARIOS = {
             {"text": "تمام بس ممكن هفكر لو الخامة مش حلوة"},
             {"image": "receipt_wrong_account.png"},
             {"image": "receipt_ok.png"},
+            {"owner": "approve"},
         ],
     },
     "known_refuser": {

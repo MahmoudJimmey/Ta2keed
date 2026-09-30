@@ -15,7 +15,14 @@ RECEIPTS = Path(__file__).resolve().parent.parent / "data" / "receipts"
 
 
 def shipped_order(user="mona", scenario="happy_path"):
+    from ta2keed import payconfirm
     for step in SCENARIOS[scenario]["steps"]:
+        if "courier" in step or "followups" in step:
+            continue
+        if "owner" in step:
+            for c in payconfirm.pending():
+                payconfirm.decide(c["id"], step["owner"] == "approve", by="test")
+            continue
         if "image" in step:
             agent.handle("test", user, image=(RECEIPTS / step["image"]).read_bytes())
         else:

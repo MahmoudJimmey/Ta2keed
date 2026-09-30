@@ -43,7 +43,13 @@ WA_TEMPLATES = [
      ["2026-10-01", "12", "9,400", "10", "7,900", "1"]),
     ("ta2keed_owner_alert", "UTILITY", "تنبيه من Ta2keed: {{1}} — افتحي لوحة التحكم للتفاصيل.",
      ["أوردر NB-1003 اترفض"]),
+    ("ta2keed_payment_check", "UTILITY",
+     "تأكيد تحويل: {{1}} بتقول إنها حولت {{2}} ج عربون لأوردر {{3}} (رقم العملية {{4}}). "
+     "اتأكدي من التطبيق إن المبلغ وصل فعلاً قبل ما توافقي، الأوردر مش هيتشحن غير بعد ردك.",
+     ["منى سامي", "100", "NB-1002", "702915384462"]),
 ]
+# templates that carry quick-reply buttons (owner answers with one tap)
+WA_TEMPLATE_BUTTONS = {"ta2keed_payment_check": ["✅ وصل", "❌ موصلش"]}
 
 
 def mask(v: str) -> str:
@@ -272,9 +278,12 @@ def whatsapp_templates(create: bool = False) -> dict:
             for name, cat, body, ex in WA_TEMPLATES:
                 if name in existing:
                     continue
+                comps = [{"type": "BODY", "text": body, "example": {"body_text": [ex]}}]
+                if name in WA_TEMPLATE_BUTTONS:
+                    comps.append({"type": "BUTTONS", "buttons": [{"type": "QUICK_REPLY", "text": t}
+                                                                 for t in WA_TEMPLATE_BUTTONS[name]]})
                 r = httpx.post(base, headers=h, timeout=20, json={
-                    "name": name, "language": "ar", "category": cat,
-                    "components": [{"type": "BODY", "text": body, "example": {"body_text": [ex]}}]})
+                    "name": name, "language": "ar", "category": cat, "components": comps})
                 if r.status_code < 400:
                     created.append(name)
                     existing[name] = r.json().get("status", "PENDING")

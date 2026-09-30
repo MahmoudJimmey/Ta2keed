@@ -27,13 +27,13 @@ async function api(path, body, method) {
   if (!r.ok) throw new Error(j.detail || j.error || r.statusText);
   return j;
 }
-function toast(msg) { const t = $("#toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 2600); }
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2600); }
 function result(el, r) { el.className = "result " + (r.ok ? "ok" : "bad"); el.textContent = (r.ok ? "✓ " : "✗ ") + r.message; }
 
 async function load() {
   S = await api("/api/setup/state");
   const local = /localhost|127\.0\.0\.1/.test(location.host);
-  $("#where").textContent = local ? "🖥 running on this computer" : "🌍 running online · " + location.host;
+  $("#where").textContent = local ? "Running on this computer" : "Online · " + location.host;
   renderNav(); render();
 }
 
@@ -74,7 +74,11 @@ function collect() {
 }
 async function save(extra = {}, next = true) {
   const { settings, store } = collect();
-  const payload = { settings: { ...settings, ...(extra.settings || {}) }, store: { ...store, ...(extra.store || {}) }, flags: extra.flags || {} };
+  const st = { ...store };
+  for (const [sec, val] of Object.entries(extra.store || {})) {
+    st[sec] = (val && typeof val === "object" && !Array.isArray(val) && st[sec]) ? { ...st[sec], ...val } : val;
+  }
+  const payload = { settings: { ...settings, ...(extra.settings || {}) }, store: st, flags: extra.flags || {} };
   try {
     const r = await api("/api/setup/save", payload);
     if (r.env_locked.length) toast("Some values are set by the host and weren't changed");
@@ -151,8 +155,14 @@ R.shop = () => `
     <label class="f">Risk level that needs a deposit<input class="i" type="number" data-s="policy.risk_deposit_threshold" step="0.05" min="0.1" max="1" value="${S.store.policy.risk_deposit_threshold}">
       <span class="hint">0.5 = balanced · lower = more deposits · higher = fewer</span></label>
     ${sfield("policy", "delivery_days", "Delivery time told to customers", { ph: "2-4" })}</div>
+  <div class="box"><h4>Confirm every transfer yourself</h4>
+    <label style="display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5">
+      <input type="checkbox" id="ownerConfirm" ${S.store.policy.owner_payment_confirmation !== false ? "checked" : ""} style="margin-top:4px">
+      <span>Before shipping a deposit order, ask me on Telegram/WhatsApp whether the money really arrived.
+      <span class="muted small" style="display:block">Recommended. Receipt screenshots can be edited, AI-generated, or reused from an old transfer. The agent's automatic checks catch obvious fakes; your one-tap confirmation catches the rest.</span></span></label></div>
   <div class="btns"><button class="btn-go" onclick="saveShop()">Save & continue →</button>${cur > 0 ? '<button class="btn-ghost" onclick="go(cur-1)">← Back</button>' : ""}</div>`;
-window.saveShop = () => save({ store: { store: { business_hours: [Number($("#h1").value), Number($("#h2").value)] } } });
+window.saveShop = () => save({ store: { store: { business_hours: [Number($("#h1").value), Number($("#h2").value)] },
+  policy: { owner_payment_confirmation: $("#ownerConfirm").checked } } });
 
 R.products = () => {
   const ps = draftProducts || S.store.products;
@@ -281,8 +291,8 @@ window.tpl = async create => {
 
 R.owner = () => `
   <h2>Alerts & daily summary <span class="muted small">optional</span></h2>
-  <p class="lead">You get an instant message only when something needs you (refused parcel, fake receipt, bad rating, reschedule),
-  plus one daily summary. Pick WhatsApp, Telegram, or both.</p>
+  <p class="lead">You get an instant message only when something needs you: <b>a transfer to confirm</b>, a refused parcel, a fake receipt,
+  a bad rating or a reschedule. Plus one daily summary. Pick WhatsApp, Telegram, or both.</p>
   <div class="box"><h4>📱 On WhatsApp</h4><div class="muted small">Needs the WhatsApp step. Enter your personal WhatsApp number in international format.</div>
     <div class="row" style="margin-top:8px">${field("OWNER_WHATSAPP", "Your WhatsApp number", { ph: "201012345678", hint: "You can also message the business number “ملخص”, “شحنات” or “عربون” any time" })}</div></div>
   <div class="box"><h4>✈️ On Telegram (easiest, free, no approval)</h4><ol class="steps-list">
