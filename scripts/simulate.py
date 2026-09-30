@@ -1,0 +1,58 @@
+"""Run the scripted demo conversations in the terminal (no server, no API keys).
+
+    python -m scripts.simulate            # all scenarios
+    python -m scripts.simulate risky_deposit
+    python -m scripts.simulate --chat     # talk to the agent yourself
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+from ta2keed import agent, db  # noqa: E402
+from ta2keed.config import ROOT  # noqa: E402
+from ta2keed.scenarios import SCENARIOS  # noqa: E402
+
+RECEIPTS = ROOT / "data" / "receipts"
+
+
+def run(name: str) -> None:
+    sc = SCENARIOS[name]
+    print(f"\n{'=' * 70}\n▶ {name}: {sc['title']}\n{'=' * 70}")
+    for step in sc["steps"]:
+        if "image" in step:
+            print(f"\n👤 [sends screenshot: {step['image']}]")
+            replies = agent.handle("sim", sc["user"], image=(RECEIPTS / step["image"]).read_bytes())
+        else:
+            print(f"\n👤 {step['text']}")
+            replies = agent.handle("sim", sc["user"], step["text"])
+        for r in replies:
+            print("🤖 " + r.replace("\n", "\n   "))
+
+
+def chat() -> None:
+    print("Chat with Ta2keed (Ctrl+C to exit). Send a receipt with: /img data/receipts/receipt_ok.png")
+    while True:
+        msg = input("\n👤 ").strip()
+        if msg.startswith("/img "):
+            replies = agent.handle("sim", "you", image=Path(msg[5:].strip()).read_bytes())
+        else:
+            replies = agent.handle("sim", "you", msg)
+        for r in replies:
+            print("🤖 " + r.replace("\n", "\n   "))
+
+
+if __name__ == "__main__":
+    db.reset(seed=True)
+    args = sys.argv[1:]
+    if args and args[0] == "--chat":
+        chat()
+    else:
+        for n in (args or list(SCENARIOS)):
+            run(n)
+        from ta2keed import impact
+        print("\n" + impact.text_report())

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ta2keed — COD order-confirmation agent</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo">✓</span> <b>Ta2keed</b> <span class="muted">تأكيد — the COD order agent for Egyptian social-commerce shops</span></div>
+  <div class="actions">
+    <select id="scenario"></select>
+    <button id="play" class="primary">▶ Play demo</button>
+    <button id="reset">Reset</button>
+    <span id="health" class="pill"></span>
+  </div>
+</header>
+
+<main>
+  <section class="phone">
+    <div class="wa-top"><div class="avatar">ن</div><div><b id="storeName">نور بوتيك</b><div class="muted small">AI assistant · online</div></div></div>
+    <div id="chat" class="chat" dir="rtl"></div>
+    <div class="receipts" id="receipts">
+      <span class="muted small">Send receipt:</span>
+      <button data-r="receipt_ok.png">✅ valid</button>
+      <button data-r="receipt_wrong_account.png">⚠️ wrong account</button>
+      <button data-r="receipt_low_amount.png">💸 low amount</button>
+      <button data-r="receipt_failed.png">❌ failed</button>
+      <label class="upl">📎<input type="file" id="file" accept="image/*,audio/*" hidden></label>
+    </div>
+    <form id="form" class="composer">
+      <input id="msg" dir="rtl" autocomplete="off" placeholder="اكتبي رسالة… مثلاً: عايزة العباية الكريب مقاس L اسود">
+      <button class="send">➤</button>
+    </form>
+  </section>
+
+  <section class="dash">
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <div class="card-h"><b>Orders</b> <a href="/api/orders.csv" class="small">export CSV (Excel)</a></div>
+      <table id="orders"><thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Risk</th><th>Deposit</th><th>Status</th><th>Tracking</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h"><b>Monthly impact for this SME</b> <span class="muted small">projection · edit data/store.json</span></div>
+        <div id="roi"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><b>Agent activity</b> <span class="muted small">every action is logged</span></div>
+        <ul id="events" class="events"></ul>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

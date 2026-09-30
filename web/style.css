@@ -1,0 +1,48 @@
+:root{--bg:#0f1115;--card:#171a21;--line:#262b36;--fg:#e8eaf0;--muted:#8a91a3;--acc:#25d366;--acc2:#7c5cff;--warn:#f5a524;--bad:#ff5d5d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 "Segoe UI",Tahoma,Arial,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line);gap:12px;flex-wrap:wrap}
+.brand{font-size:18px}.logo{background:var(--acc);color:#000;border-radius:8px;padding:2px 8px;font-weight:800}
+.muted{color:var(--muted)}.small{font-size:12px}
+.actions{display:flex;gap:8px;align-items:center}
+button,select{background:#222733;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit}
+button:hover{border-color:#3a4150}button.primary{background:var(--acc2);border-color:var(--acc2)}
+.pill{font-size:11px;padding:4px 8px;border-radius:99px;background:#1f2a22;color:#8fe3a8}
+main{display:grid;grid-template-columns:400px 1fr;gap:20px;padding:20px;height:calc(100vh - 62px)}
+.phone{background:#0b141a;border:1px solid var(--line);border-radius:22px;display:flex;flex-direction:column;overflow:hidden}
+.wa-top{display:flex;gap:10px;align-items:center;padding:10px 14px;background:#1f2c34}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--acc);color:#000;display:grid;place-items:center;font-weight:800}
+.chat{flex:1;overflow-y:auto;padding:14px;background:#0b141a url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='2' cy='2' r='1' fill='%23ffffff08'/%3E%3C/svg%3E")}
+.b{max-width:85%;padding:7px 10px;border-radius:10px;margin:4px 0;white-space:pre-wrap;word-wrap:break-word;font-size:13.5px}
+.b.user{background:#005c4b;margin-left:auto;border-top-right-radius:2px}
+.b.agent{background:#202c33;margin-right:auto;border-top-left-radius:2px}
+.b img{max-width:170px;border-radius:6px;display:block}
+.typing{color:var(--muted);font-size:12px;padding:4px}
+.receipts{display:flex;flex-wrap:wrap;gap:5px;padding:6px 10px;background:#111b21;align-items:center}
+.receipts button,.upl{font-size:11px;padding:4px 7px;border-radius:6px;background:#1f2c34;border:1px solid #2a3942;cursor:pointer}
+.composer{display:flex;gap:8px;padding:10px;background:#1f2c34}
+.composer input{flex:1;background:#2a3942;border:0;color:var(--fg);border-radius:20px;padding:10px 14px;font:inherit;outline:none}
+.send{border-radius:50%;width:42px;background:var(--acc);color:#000;border:0}
+.dash{overflow-y:auto;display:flex;flex-direction:column;gap:16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi .v{font-size:22px;font-weight:700}.kpi .l{color:var(--muted);font-size:12px}
+.kpi.g .v{color:var(--acc)}.kpi.w .v{color:var(--warn)}.kpi.p .v{color:#b3a1ff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.card-h a{color:#9db4ff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:500}
+td.ar{direction:rtl;text-align:right}
+.tag{padding:2px 7px;border-radius:99px;font-size:11px}
+.s-shipped{background:#133d2a;color:#6ee7a1}.s-awaiting_deposit{background:#3d3113;color:#f5c969}.s-cancelled{background:#3d1717;color:#ff9b9b}.s-confirmed{background:#1b2a4a;color:#9db4ff}
+.risk{display:inline-block;width:52px;height:6px;background:#2a2f3a;border-radius:4px;vertical-align:middle;margin-right:6px;overflow:hidden}
+.risk i{display:block;height:100%}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.roi-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line)}
+.roi-total{font-size:26px;font-weight:800;color:var(--acc);margin-top:8px}
+.events{list-style:none;margin:0;padding:0;max-height:330px;overflow-y:auto;font-size:12.5px}
+.events li{padding:6px 0;border-bottom:1px solid var(--line)}
+.events .t{color:var(--muted);font-family:Consolas,monospace;margin-right:6px}
+.ev-fraud{color:var(--bad)}.ev-ok{color:var(--acc)}
+@media(max-width:1000px){main{grid-template-columns:1fr;height:auto}.phone{height:640px}.grid2{grid-template-columns:1fr}}

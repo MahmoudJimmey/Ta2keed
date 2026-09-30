@@ -1,0 +1,7 @@
+[
+  {"phone": "01011112222", "name": "منى سامي", "delivered": 6, "refused": 0},
+  {"phone": "01122223333", "name": "ياسمين حسن", "delivered": 2, "refused": 0},
+  {"phone": "01233334444", "name": "هبة علي", "delivered": 0, "refused": 3},
+  {"phone": "01544445555", "name": "دينا مصطفى", "delivered": 1, "refused": 2},
+  {"phone": "01055556666", "name": "سارة محمود", "delivered": 4, "refused": 1}
+]

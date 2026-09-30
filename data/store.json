@@ -1,0 +1,111 @@
+{
+  "store": {
+    "name": "Nour Boutique",
+    "name_ar": "نور بوتيك",
+    "city": "Cairo",
+    "currency": "EGP",
+    "business_hours": [10, 22],
+    "agent_name_ar": "نور"
+  },
+  "policy": {
+    "deposit_amount": 100,
+    "risk_deposit_threshold": 0.5,
+    "high_value_order_egp": 1500,
+    "instapay_handle": "nourboutique@instapay",
+    "vodafone_cash": "010 0000 0000",
+    "delivery_days": "2-4"
+  },
+  "shipping": {
+    "zones": {
+      "cairo": {"fee": 60, "label_ar": "القاهرة"},
+      "giza": {"fee": 60, "label_ar": "الجيزة"},
+      "alex": {"fee": 75, "label_ar": "الإسكندرية"},
+      "delta": {"fee": 80, "label_ar": "الدلتا"},
+      "canal": {"fee": 80, "label_ar": "القناة"},
+      "upper": {"fee": 95, "label_ar": "الصعيد"}
+    },
+    "return_fee": 45
+  },
+  "economics": {
+    "_comment": "Replace with your pilot SME's measured numbers. These drive the impact report.",
+    "monthly_orders": 600,
+    "manual_minutes_per_order": 9,
+    "owner_review_minutes": 2,
+    "staff_hourly_cost_egp": 45,
+    "baseline_refusal_rate": 0.25,
+    "refusal_rate_with_deposit": 0.04,
+    "gross_margin": 0.45
+  },
+  "products": [
+    {
+      "sku": "NB-ABY-01",
+      "name_ar": "عباية كريب سادة",
+      "name_en": "Crepe Abaya",
+      "price": 890,
+      "sizes": ["S", "M", "L", "XL"],
+      "colors": ["black", "navy", "beige"],
+      "keywords": ["عباية", "عبايه", "عبايات", "abaya", "abaia", "3abaya"],
+      "upsell": {"sku": "NB-HIJ-01", "price": 120}
+    },
+    {
+      "sku": "NB-HIJ-01",
+      "name_ar": "طرحة شيفون",
+      "name_en": "Chiffon Hijab",
+      "price": 150,
+      "sizes": [],
+      "colors": ["black", "beige", "pink", "navy"],
+      "keywords": ["طرحة", "طرحه", "طرح", "حجاب", "hijab", "tar7a"],
+      "upsell": null
+    },
+    {
+      "sku": "NB-SET-01",
+      "name_ar": "طقم بيتي قطن",
+      "name_en": "Cotton Home Set",
+      "price": 450,
+      "sizes": ["M", "L", "XL"],
+      "colors": ["pink", "navy", "olive"],
+      "keywords": ["طقم", "بيجامة", "بيجامه", "بيجاما", "pajama", "set"],
+      "upsell": {"sku": "NB-SOC-01", "price": 70}
+    },
+    {
+      "sku": "NB-BAG-01",
+      "name_ar": "شنطة كروس",
+      "name_en": "Crossbody Bag",
+      "price": 520,
+      "sizes": [],
+      "colors": ["black", "beige"],
+      "keywords": ["شنطة", "شنطه", "شنط", "bag", "cross", "كروس"],
+      "upsell": {"sku": "NB-WAL-01", "price": 180}
+    },
+    {
+      "sku": "NB-DRS-01",
+      "name_ar": "فستان صيفي",
+      "name_en": "Summer Dress",
+      "price": 690,
+      "sizes": ["S", "M", "L"],
+      "colors": ["white", "pink", "olive"],
+      "keywords": ["فستان", "فساتين", "dress", "fostan"],
+      "upsell": {"sku": "NB-HIJ-01", "price": 120}
+    },
+    {
+      "sku": "NB-SOC-01",
+      "name_ar": "شراب قطن (٣ قطع)",
+      "name_en": "Cotton Socks 3-pack",
+      "price": 90,
+      "sizes": [],
+      "colors": [],
+      "keywords": ["شراب", "شرابات", "socks"],
+      "upsell": null
+    },
+    {
+      "sku": "NB-WAL-01",
+      "name_ar": "محفظة جلد",
+      "name_en": "Leather Wallet",
+      "price": 220,
+      "sizes": [],
+      "colors": ["black", "beige"],
+      "keywords": ["محفظة", "محفظه", "wallet"],
+      "upsell": null
+    }
+  ]
+}
