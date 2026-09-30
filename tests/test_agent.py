@@ -10,6 +10,8 @@ def run(name):
     sc = SCENARIOS[name]
     out = []
     for step in sc["steps"]:
+        if "courier" in step or "followups" in step:
+            continue
         if "image" in step:
             out.append(agent.handle("test", sc["user"], image=(RECEIPTS / step["image"]).read_bytes()))
         else:

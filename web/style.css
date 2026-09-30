@@ -45,4 +45,15 @@ td.ar{direction:rtl;text-align:right}
 .events li{padding:6px 0;border-bottom:1px solid var(--line)}
 .events .t{color:var(--muted);font-family:Consolas,monospace;margin-right:6px}
 .ev-fraud{color:var(--bad)}.ev-ok{color:var(--acc)}
+button.mini{padding:3px 8px;font-size:11.5px;border-radius:6px}
+.dl{display:flex;gap:4px;flex-wrap:wrap}
+.dl button{padding:2px 6px;font-size:11px;border-radius:6px}
+.dl .bad{border-color:#5a2a2a;color:#ff9b9b}
+.steps{display:flex;gap:3px;margin-top:4px}
+.steps i{width:14px;height:4px;border-radius:2px;background:#2a2f3a}
+.steps i.on{background:var(--acc)}.steps i.fail{background:var(--bad)}
+.b.agent.pro{border-right:3px solid var(--acc2)}
+.b .via{display:block;direction:ltr;text-align:right;font-size:10.5px;color:var(--muted);margin-top:3px}
+.digest{white-space:pre-wrap;font:12.5px/1.6 "Segoe UI",Tahoma,sans-serif;margin:0;max-height:330px;overflow:auto;color:var(--fg)}
+.s-delivered{background:#133d2a;color:#6ee7a1}.s-refused,.s-returned{background:#3d1717;color:#ff9b9b}
 @media(max-width:1000px){main{grid-template-columns:1fr;height:auto}.phone{height:640px}.grid2{grid-template-columns:1fr}}

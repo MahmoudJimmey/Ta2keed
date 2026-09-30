@@ -15,8 +15,8 @@ from .config import store
 def measured() -> dict:
     orders = db.q("SELECT * FROM orders")
     n = len(orders)
-    confirmed = [o for o in orders if o["status"] in ("confirmed", "shipped")]
-    shipped = [o for o in orders if o["status"] == "shipped"]
+    confirmed = [o for o in orders if o["status"] in ("confirmed", "shipped", "delivered", "refused", "returned")]
+    shipped = [o for o in orders if o.get("tracking")]
     deposits = [o for o in orders if o["deposit_paid"]]
     risky = [o for o in orders if o["deposit_required"]]
     risky_cancelled = [o for o in risky if o["status"] == "cancelled" or (o["status"] == "awaiting_deposit")]
@@ -28,6 +28,12 @@ def measured() -> dict:
     msgs = db.one("SELECT COUNT(*) AS n FROM messages WHERE role='agent'")["n"]
     ret_fee = store()["shipping"]["return_fee"]
     avoided_loss = sum((o["shipping"] or 0) + ret_fee for o in risky_cancelled)
+    delivered = [o for o in orders if o.get("delivery_status") == "delivered"]
+    refused = [o for o in orders if o.get("delivery_status") in ("refused", "returned")]
+    closed = len(delivered) + len(refused)
+    ratings = [o["rating"] for o in orders if o.get("rating")]
+    cust_msgs = db.q("SELECT data FROM events WHERE type='customer_notified'")
+    courier_updates = db.one("SELECT COUNT(*) AS n FROM events WHERE type='delivery_update'")["n"]
     return {
         "conversations": convs,
         "agent_messages_sent": msgs,
@@ -45,6 +51,17 @@ def measured() -> dict:
         "upsells_accepted": ups_acc,
         "upsell_revenue_egp": upsell_rev,
         "after_hours_orders": sum(1 for o in orders if o["after_hours"]),
+        "orders_delivered": len(delivered),
+        "orders_refused_or_returned": len(refused),
+        "measured_refusal_rate": round(len(refused) / closed, 3) if closed else None,
+        "cash_collected_egp": sum(o.get("cod_collected") or 0 for o in delivered),
+        "courier_updates_received": courier_updates,
+        "customer_highlight_msgs": len(cust_msgs),
+        "courier_updates_kept_internal": max(0, courier_updates - sum(
+            1 for m in cust_msgs if json.loads(m["data"]).get("kind") in ("out_for_delivery", "delivered", "delivery_failed"))),
+        "avg_rating": round(sum(ratings) / len(ratings), 2) if ratings else None,
+        "ratings_count": len(ratings),
+        "repeat_orders": sum(1 for o in orders if o.get("source") == "reorder"),
         "human_minutes_spent": 0,
     }
 

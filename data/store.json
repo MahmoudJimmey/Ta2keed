@@ -26,6 +26,26 @@
     },
     "return_fee": 45
   },
+  "notifications": {
+    "_comment": "Customer only hears about the highlights; everything else goes to the dashboard + owner digest.",
+    "customer_highlights": ["out_for_delivery", "delivered", "delivery_failed"],
+    "owner_instant_alerts": ["refused", "delivery_failed", "returned", "low_rating", "reschedule_requested", "fraud"],
+    "digest_time": "21:00",
+    "review_after_hours": 24,
+    "reorder_after_days": 14,
+    "reorder_discount": 0.10
+  },
+  "whatsapp_templates": {
+    "_comment": "Used only when the customer's last message is older than 24h (WhatsApp rule). Register these in Meta (see docs/whatsapp-templates.md).",
+    "language": "ar",
+    "out_for_delivery": "ta2keed_out_for_delivery",
+    "delivered": "ta2keed_delivered",
+    "delivery_failed": "ta2keed_delivery_failed",
+    "review": "ta2keed_review_request",
+    "reorder": "ta2keed_reorder_offer",
+    "owner_digest": "ta2keed_owner_digest",
+    "owner_alert": "ta2keed_owner_alert"
+  },
   "economics": {
     "_comment": "Replace with your pilot SME's measured numbers. These drive the impact report.",
     "monthly_orders": 600,

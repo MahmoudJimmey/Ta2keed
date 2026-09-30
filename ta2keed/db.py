@@ -38,7 +38,22 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT, conv_id INTEGER, order_id TEXT, type TEXT, data TEXT, ts REAL
 );
+CREATE TABLE IF NOT EXISTS scheduled (
+  id INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT, conv_id INTEGER, channel TEXT, user_id TEXT,
+  kind TEXT, payload TEXT, due_at REAL, sent_at REAL, status TEXT DEFAULT 'pending'
+);
+CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
 """
+
+# columns added after v1 (ALTERed in for existing databases)
+MIGRATIONS = [
+    ("orders", "delivery_status", "TEXT"),
+    ("orders", "delivery_updated_at", "REAL"),
+    ("orders", "delivered_at", "REAL"),
+    ("orders", "cod_collected", "INTEGER DEFAULT 0"),
+    ("orders", "source", "TEXT DEFAULT 'dm'"),
+    ("orders", "rating", "INTEGER"),
+]
 
 
 def conn() -> sqlite3.Connection:
@@ -49,6 +64,10 @@ def conn() -> sqlite3.Connection:
             _conn = sqlite3.connect(settings.db_path, check_same_thread=False)
             _conn.row_factory = sqlite3.Row
             _conn.executescript(SCHEMA)
+            for table, col, typ in MIGRATIONS:
+                cols = {r[1] for r in _conn.execute(f"PRAGMA table_info({table})")}
+                if col not in cols:
+                    _conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
             _conn.commit()
         return _conn
 
@@ -73,7 +92,7 @@ def x(sql: str, args: tuple = ()) -> int:
 def reset(seed: bool = True) -> None:
     with _lock:
         c = conn()
-        for t in ("customers", "conversations", "messages", "orders", "payments", "events"):
+        for t in ("customers", "conversations", "messages", "orders", "payments", "events", "scheduled", "kv"):
             c.execute(f"DELETE FROM {t}")
         c.execute("DELETE FROM sqlite_sequence")
         c.commit()
@@ -128,6 +147,24 @@ def customer(phone: str | None) -> dict | None:
     if not phone:
         return None
     return one("SELECT * FROM customers WHERE phone=?", (phone,))
+
+
+def kv_get(k: str, default: str | None = None) -> str | None:
+    row = one("SELECT v FROM kv WHERE k=?", (k,))
+    return row["v"] if row else default
+
+
+def kv_set(k: str, v: str) -> None:
+    x("INSERT OR REPLACE INTO kv(k,v) VALUES(?,?)", (k, v))
+
+
+def conversation_by_id(conv_id: int) -> dict | None:
+    return one("SELECT * FROM conversations WHERE id=?", (conv_id,))
+
+
+def last_inbound_ts(conv_id: int) -> float | None:
+    row = one("SELECT MAX(ts) AS t FROM messages WHERE conv_id=? AND role='user'", (conv_id,))
+    return row["t"] if row else None
 
 
 def next_order_id() -> str:

@@ -13,7 +13,7 @@ try:
 except Exception:
     pass
 
-from ta2keed import agent, db  # noqa: E402
+from ta2keed import aftercare, agent, db, delivery  # noqa: E402
 from ta2keed.config import ROOT  # noqa: E402
 from ta2keed.scenarios import SCENARIOS  # noqa: E402
 
@@ -24,6 +24,21 @@ def run(name: str) -> None:
     sc = SCENARIOS[name]
     print(f"\n{'=' * 70}\n▶ {name}: {sc['title']}\n{'=' * 70}")
     for step in sc["steps"]:
+        if "courier" in step or "followups" in step:
+            conv = db.get_conversation("sim", sc["user"])
+            oid = conv.get("order_id") or (db.one("SELECT id FROM orders WHERE conv_id=? ORDER BY created_at DESC LIMIT 1",
+                                                  (conv["id"],)) or {}).get("id")
+            before = db.one("SELECT MAX(id) m FROM messages WHERE conv_id=?", (conv["id"],))["m"] or 0
+            if "courier" in step:
+                res = delivery.advance(delivery.find_order(oid))
+                print(f"\n📦 [courier update: {res.get('status')}] "
+                      + ("→ customer notified" if res.get("customer_notified") else "→ internal only (dashboard)"))
+            else:
+                aftercare.fast_forward(oid, step["followups"])
+                print(f"\n⏩ [time passes: {step['followups']} follow-up is due]")
+            for m in db.q("SELECT text FROM messages WHERE conv_id=? AND id>? AND role='agent'", (conv["id"], before)):
+                print("🤖 " + m["text"].replace("\n", "\n   "))
+            continue
         if "image" in step:
             print(f"\n👤 [sends screenshot: {step['image']}]")
             replies = agent.handle("sim", sc["user"], image=(RECEIPTS / step["image"]).read_bytes())

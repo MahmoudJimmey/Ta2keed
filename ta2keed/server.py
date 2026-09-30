@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Str
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import agent, channels, db, impact, notify
+from . import aftercare, agent, channels, db, delivery, impact, notify, scheduler
 from .config import ROOT, settings, store
 from .scenarios import SCENARIOS
 
@@ -27,10 +27,14 @@ async def lifespan(app: FastAPI):
     db.conn()
     if not db.one("SELECT phone FROM customers LIMIT 1"):
         db.seed_customers()
-    task = asyncio.create_task(channels.telegram_loop()) if settings.telegram_bot_token else None
+    tasks = []
+    if settings.telegram_bot_token:
+        tasks.append(asyncio.create_task(channels.telegram_loop()))
+    if settings.scheduler_enabled:
+        tasks.append(asyncio.create_task(scheduler.loop()))
     yield
-    if task:
-        task.cancel()
+    for t in tasks:
+        t.cancel()
 
 
 app = FastAPI(title="Ta2keed — COD order-confirmation agent", lifespan=lifespan)
@@ -54,7 +58,9 @@ def home():
 def health():
     return {"ok": True, "llm": settings.llm_provider if settings.llm_enabled else "offline",
             "whatsapp": bool(settings.wa_access_token), "telegram": bool(settings.telegram_bot_token),
-            "courier": "bosta" if settings.bosta_api_key else "mock"}
+            "courier": "bosta" if settings.bosta_api_key else "mock", "scheduler": settings.scheduler_enabled,
+            "owner_channels": [c for c, on in (("telegram", settings.owner_telegram_chat_id),
+                                               ("whatsapp", settings.owner_whatsapp)) if on] or ["dashboard"]}
 
 
 @app.post("/api/chat")
@@ -124,6 +130,91 @@ def digest():
     return notify.digest_text()
 
 
+@app.post("/api/digest/send")
+def digest_send():
+    return notify.send_digest()
+
+
+@app.get("/api/messages")
+def messages(user: str, since: int = 0, channel: str = "web"):
+    """Web chat polls this to show proactive messages (delivery highlights, review, reorder)."""
+    conv = db.one("SELECT id FROM conversations WHERE channel=? AND user_id=?", (channel, user))
+    if not conv:
+        return {"messages": [], "last_id": since}
+    rows = db.q("SELECT id, role, text, meta FROM messages WHERE conv_id=? AND id>? ORDER BY id", (conv["id"], since))
+    for r in rows:
+        r["meta"] = json.loads(r["meta"] or "{}")
+    last = db.one("SELECT MAX(id) AS m FROM messages WHERE conv_id=?", (conv["id"],))["m"] or since
+    return {"messages": [r for r in rows if r["meta"].get("proactive")], "last_id": last}
+
+
+# ---------------- delivery tracking
+class DeliveryIn(BaseModel):
+    order_id: str | None = None
+    tracking: str | None = None
+    status: str | int
+    reason: str | None = None
+    cod_collected: int | None = None
+
+
+@app.post("/api/orders/{order_id}/advance")
+def order_advance(order_id: str):
+    """Mock courier: move the parcel one step (created → picked up → in transit → out for delivery → delivered)."""
+    o = delivery.find_order(order_id)
+    if not o:
+        raise HTTPException(404)
+    return delivery.advance(o)
+
+
+@app.post("/api/orders/{order_id}/delivery")
+def order_delivery(order_id: str, body: DeliveryIn):
+    """Manual status update (e.g. the shop's own driver): delivered / refused / delivery_failed / returned..."""
+    o = delivery.find_order(order_id)
+    if not o:
+        raise HTTPException(404)
+    res = delivery.apply_update(o, body.status, reason=body.reason, source="manual", cod_collected=body.cod_collected)
+    if not res["ok"]:
+        raise HTTPException(400, res["error"])
+    return res
+
+
+@app.post("/webhook/courier")
+async def courier_webhook(request: Request):
+    """Generic courier webhook: {order_id|tracking, status, reason?, cod_collected?}."""
+    if settings.courier_webhook_secret and request.headers.get("authorization") != settings.courier_webhook_secret:
+        raise HTTPException(401)
+    body = DeliveryIn(**(await request.json()))
+    o = delivery.find_order(body.order_id, body.tracking)
+    if not o:
+        raise HTTPException(404, "order not found")
+    return delivery.apply_update(o, body.status, reason=body.reason, source="courier-webhook",
+                                 cod_collected=body.cod_collected)
+
+
+@app.post("/webhook/bosta")
+async def bosta_webhook(request: Request):
+    """Bosta delivery webhook (set it in Bosta dashboard → Settings → Webhooks)."""
+    if settings.courier_webhook_secret and request.headers.get("authorization") != settings.courier_webhook_secret:
+        raise HTTPException(401)
+    p = delivery.parse_bosta(await request.json())
+    o = delivery.find_order(p["order_id"], p["tracking"])
+    if not o:
+        return {"ok": False, "error": "order not found"}  # 200 so Bosta doesn't retry forever
+    return delivery.apply_update(o, p["status"], reason=p["reason"], source="bosta",
+                                 cod_collected=int(p["cod"]) if p.get("cod") else None)
+
+
+@app.get("/api/scheduled")
+def scheduled():
+    return db.q("SELECT * FROM scheduled ORDER BY due_at")
+
+
+@app.post("/api/followups/fast-forward")
+def followups_fast_forward(order_id: str | None = None, kind: str | None = None):
+    """Demo: send pending review/reorder messages now instead of in 24h / 14 days."""
+    return {"sent": aftercare.fast_forward(order_id, kind)}
+
+
 # ---------------- WhatsApp Cloud API webhook
 @app.get("/webhook/whatsapp")
 def wa_verify(mode: str = Query(None, alias="hub.mode"), token: str = Query(None, alias="hub.verify_token"),
@@ -135,6 +226,9 @@ def wa_verify(mode: str = Query(None, alias="hub.mode"), token: str = Query(None
 
 @app.post("/webhook/whatsapp")
 async def wa_webhook(request: Request):
-    payload = await request.json()
+    raw = await request.body()
+    if not channels.wa_signature_ok(raw, request.headers.get("x-hub-signature-256")):
+        raise HTTPException(401, "bad signature")
+    payload = json.loads(raw or b"{}")
     asyncio.create_task(channels.wa_handle(payload))
     return {"ok": True}

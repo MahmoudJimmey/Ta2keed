@@ -40,7 +40,21 @@
 
     <div class="card">
       <div class="card-h"><b>Orders</b> <a href="/api/orders.csv" class="small">export CSV (Excel)</a></div>
-      <table id="orders"><thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Risk</th><th>Deposit</th><th>Status</th><th>Tracking</th></tr></thead><tbody></tbody></table>
+      <table id="orders"><thead><tr><th>#</th><th>Customer</th><th>Total</th><th>Risk</th><th>Deposit</th><th>Delivery</th><th>Courier (mock)</th></tr></thead><tbody></tbody></table>
+      <div class="muted small" style="margin-top:6px">Delivery updates are all recorded here. The customer is only messaged on the highlights: <b>out for delivery</b>, <b>delivered</b>, <b>failed attempt</b>.</div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h"><b>Owner inbox</b> <span class="muted small" id="ownerVia"></span></div>
+        <ul id="owner" class="events"></ul>
+      </div>
+      <div class="card">
+        <div class="card-h"><b>Daily summary</b>
+          <span><button id="ff" class="mini" title="Send the 24h review + 14-day reorder messages now">⏩ Follow-ups</button>
+          <button id="sendDigest" class="mini">Send now</button></span></div>
+        <pre id="digest" class="digest" dir="rtl"></pre>
+      </div>
     </div>
 
     <div class="grid2">

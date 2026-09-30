@@ -18,6 +18,25 @@ GRAPH = "https://graph.facebook.com/v21.0"
 
 # ------------------------------------------------------------------ WhatsApp
 
+_seen_ids: dict[str, float] = {}  # Meta retries webhooks; dedupe by message id
+
+
+def wa_signature_ok(body: bytes, header: str | None) -> bool:
+    """Verify X-Hub-Signature-256 when WHATSAPP_APP_SECRET is set (recommended in production)."""
+    if not settings.wa_app_secret:
+        return True
+    import hashlib
+    import hmac
+    if not header or not header.startswith("sha256="):
+        return False
+    digest = hmac.new(settings.wa_app_secret.encode(), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(digest, header[7:])
+
+
+def _owner_wa(sender: str) -> bool:
+    return bool(settings.owner_whatsapp) and sender.lstrip("+") == settings.owner_whatsapp.lstrip("+")
+
+
 async def wa_send(to: str, text: str) -> None:
     if not settings.wa_access_token:
         return
@@ -25,6 +44,15 @@ async def wa_send(to: str, text: str) -> None:
         await c.post(f"{GRAPH}/{settings.wa_phone_number_id}/messages",
                      headers={"Authorization": f"Bearer {settings.wa_access_token}"},
                      json={"messaging_product": "whatsapp", "to": to, "type": "text", "text": {"body": text}})
+
+
+async def wa_mark_read(message_id: str) -> None:
+    if not settings.wa_access_token:
+        return
+    async with httpx.AsyncClient(timeout=10) as c:
+        await c.post(f"{GRAPH}/{settings.wa_phone_number_id}/messages",
+                     headers={"Authorization": f"Bearer {settings.wa_access_token}"},
+                     json={"messaging_product": "whatsapp", "status": "read", "message_id": message_id})
 
 
 async def wa_media(media_id: str) -> tuple[bytes, str]:
@@ -35,19 +63,52 @@ async def wa_media(media_id: str) -> tuple[bytes, str]:
         return data, meta.get("mime_type", "application/octet-stream")
 
 
+def _wa_text(msg: dict) -> str:
+    kind = msg.get("type")
+    if kind == "text":
+        return msg["text"]["body"]
+    if kind == "button":  # quick-reply button on a template
+        return msg["button"].get("text", "")
+    if kind == "interactive":
+        i = msg["interactive"]
+        return (i.get("button_reply") or i.get("list_reply") or {}).get("title", "")
+    return ""
+
+
 async def wa_handle(payload: dict) -> None:
+    import time as _t
     for entry in payload.get("entry", []):
         for change in entry.get("changes", []):
-            for msg in change.get("value", {}).get("messages", []):
+            value = change.get("value", {})
+            for st in value.get("statuses", []):  # delivery receipts for OUR messages (sent/delivered/read/failed)
+                if st.get("status") == "failed":
+                    db.log_event(None, "whatsapp_send_failed", {"to": st.get("recipient_id"), "errors": st.get("errors")})
+            for msg in value.get("messages", []):
+                mid = msg.get("id", "")
+                if mid in _seen_ids:
+                    continue
+                _seen_ids[mid] = _t.time()
+                if len(_seen_ids) > 5000:
+                    for k in sorted(_seen_ids, key=_seen_ids.get)[:2500]:
+                        _seen_ids.pop(k, None)
                 sender = msg["from"]
                 kind = msg.get("type")
+                asyncio.create_task(wa_mark_read(mid))
+
+                if _owner_wa(sender):  # the shop owner talks to the agent: commands + opens the 24h window
+                    db.kv_set("owner_last_inbound", str(_t.time()))
+                    await wa_send(sender, notify.owner_command(_wa_text(msg)))
+                    continue
                 try:
-                    if kind == "text":
-                        replies = await asyncio.to_thread(agent.handle, "whatsapp", sender, msg["text"]["body"])
+                    if kind in ("text", "button", "interactive"):
+                        replies = await asyncio.to_thread(agent.handle, "whatsapp", sender, _wa_text(msg))
                     elif kind == "image":
                         data, mime = await wa_media(msg["image"]["id"])
                         replies = await asyncio.to_thread(agent.handle, "whatsapp", sender,
                                                           msg["image"].get("caption", ""), image=data, image_mime=mime)
+                    elif kind == "document" and str(msg["document"].get("mime_type", "")).startswith("image/"):
+                        data, mime = await wa_media(msg["document"]["id"])
+                        replies = await asyncio.to_thread(agent.handle, "whatsapp", sender, image=data, image_mime=mime)
                     elif kind == "audio":
                         data, mime = await wa_media(msg["audio"]["id"])
                         replies = await asyncio.to_thread(agent.handle, "whatsapp", sender, audio=data,

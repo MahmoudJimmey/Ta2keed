@@ -45,9 +45,15 @@ class Settings:
     wa_verify_token: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "ta2keed-verify")
     wa_access_token: str = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
     wa_phone_number_id: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    wa_app_secret: str = os.getenv("WHATSAPP_APP_SECRET", "")  # verifies X-Hub-Signature-256 on webhooks
+    owner_whatsapp: str = os.getenv("OWNER_WHATSAPP", "")  # e.g. 201001234567 (international, no +)
 
     # Courier
     bosta_api_key: str = os.getenv("BOSTA_API_KEY", "")  # empty => mock courier
+    courier_webhook_secret: str = os.getenv("COURIER_WEBHOOK_SECRET", "")  # expected Authorization header value
+
+    # Background jobs (daily digest, review/reorder follow-ups)
+    scheduler_enabled: bool = os.getenv("SCHEDULER", "on").lower() not in ("0", "off", "false")
 
     @property
     def llm_enabled(self) -> bool:

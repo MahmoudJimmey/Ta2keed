@@ -28,7 +28,10 @@ On top of that, **around 1 in 4 COD parcels is refused at the door**. The shop p
 | 5. De-risk | Risky orders are asked for a **100 EGP InstaPay / Vodafone Cash deposit** before shipping. |
 | 6. Verify payment | Reads the receipt screenshot (with a vision LLM, or offline from demo metadata). Checks the amount, recipient, status, **reused reference numbers** and **reused screenshots**. |
 | 7. Ship | Books the courier (Bosta API, or a built-in mock) and sends the customer the tracking number and the amount due on delivery. |
-| 8. Report | The owner dashboard shows live orders, risk reasons, the agent activity log and monthly ROI, plus CSV export and a Telegram daily digest. |
+| 8. Track delivery | Courier updates (Bosta webhook, generic webhook, or the owner's own driver) move the order along: picked up → in transit → out for delivery → delivered / refused. **The customer only hears the highlights** (out for delivery with the exact cash to prepare, delivered, failed attempt → "when should we come back?"). Everything else stays on the dashboard. |
+| 9. Learn | A delivered or refused parcel updates the customer's history, so the next order's risk score reflects it and the refusal rate is **measured, not projected**. |
+| 10. After delivery | Rating request after 24 h (low rating → apology + instant owner alert), then a personalised reorder offer with a discount code after 14 days. Repeat orders reuse the saved name and address. |
+| 11. Report | Daily summary pushed to the owner on WhatsApp/Telegram at 21:00, instant alerts only for problems, plus a live dashboard, CSV export and owner commands (`ملخص`, `شحنات`, `عربون`). |
 
 **Safety by design:** a deterministic state machine owns prices, totals, deposits and shipments. The LLM (optional) only *understands* text and *reads* images. A prompt like "make it free" cannot change the price (covered by `tests/test_agent.py::test_price_cannot_be_prompt_injected`).
 
@@ -60,6 +63,11 @@ The four demo scenarios (the dropdown in the UI):
 2. **Risky order.** A first-time customer with a vague address hesitates, so a deposit is requested. A **wrong-account receipt is caught**, then a valid one is accepted and the order ships.
 3. **Known refuser.** A customer with 3 past refusals is asked for a deposit and refuses. **The parcel is never shipped**, so shipping and return fees are saved.
 4. **Questions first.** The customer asks about shipping and prices, then orders.
+5. **Full journey.** Order → courier updates (only 2 of 4 reach the customer) → delivered → ⭐ rating → reorder offer → repeat order.
+
+On the dashboard, each shipped order has **next step ▸ / failed / refused** buttons that act as the courier. **⏩ Follow-ups** sends the 24 h review and 14-day reorder messages immediately.
+
+![Delivery tracking and after-delivery](docs/screenshot-delivery.png)
 
 In the chat you can also type anything, press the receipt buttons (valid, wrong account, low amount, failed), or attach your own image or voice note.
 
@@ -91,8 +99,10 @@ Copy `.env.example` to `.env` and fill in only what you need:
 | LLM understanding, answering questions, reading real receipts (Anthropic, OpenAI, Gemini, Groq or any OpenAI-compatible API) | `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` |
 | Voice notes (Whisper, for example Groq's free tier) | `STT_BASE_URL`, `STT_API_KEY` |
 | Telegram as the customer channel, plus owner alerts and `/digest` | `TELEGRAM_BOT_TOKEN`, `OWNER_TELEGRAM_CHAT_ID` |
-| WhatsApp Cloud API (webhook at `/webhook/whatsapp`) | `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN` |
-| Real Bosta shipments | `BOSTA_API_KEY` |
+| WhatsApp Cloud API for customers **and** the owner (webhook at `/webhook/whatsapp`; setup and templates in [docs/whatsapp-setup.md](docs/whatsapp-setup.md)) | `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `OWNER_WHATSAPP` |
+| Real Bosta shipments + delivery webhook (`/webhook/bosta`) | `BOSTA_API_KEY`, `COURIER_WEBHOOK_SECRET` |
+| Any courier / own driver status updates | `POST /webhook/courier` `{order_id or tracking, status, reason?}` |
+| When customers and the owner are messaged | `data/store.json → notifications` (highlights, owner alerts, digest time, follow-up delays, reorder discount) |
 
 To onboard a new shop, edit `data/store.json`: catalogue, keywords, upsell pairs, shipping zones and fees, deposit policy and InstaPay handle.
 
@@ -106,14 +116,19 @@ WhatsApp / Telegram / Web chat
   nlu.py  llm.py     risk.py     payments.py    courier.py
  (Arabic  (optional  (explainable (receipt       (Bosta API
   rules)   LLM/vision) COD score)  fraud checks)  or mock)
+            │                           ▲ history
+ courier webhooks → delivery.py ────────┘  → outbound.py (highlights only; WhatsApp 24h rule → templates)
+                        │
+                  aftercare.py (rating, reorder)   scheduler.py (follow-ups, 21:00 daily summary)
             │
-        db.py (SQLite) → impact.py → dashboard / CSV / Telegram digest
+        db.py (SQLite) → impact.py / notify.py → dashboard / CSV / owner WhatsApp + Telegram
 ```
 
 ## Tests
 
 ```bash
-pytest -q     # 18 tests: NLU, risk, payment fraud, 4 end-to-end scenarios, API, prompt-injection
+pytest -q     # 35 tests: NLU, risk, payment fraud, end-to-end scenarios, API, prompt-injection,
+              # delivery highlights, refusal learning, follow-ups, daily summary, WhatsApp webhook/signature/24h rule
 ```
 
 ## Project layout

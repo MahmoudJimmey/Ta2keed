@@ -28,8 +28,19 @@ from ta2keed.scenarios import SCENARIOS  # noqa: E402
 
 # ---------------------------------------------------------------- run the demo to get measured numbers
 db.reset(seed=True)
+from ta2keed import aftercare, delivery  # noqa: E402
+
 for sc in SCENARIOS.values():
     for step in sc["steps"]:
+        if "courier" in step or "followups" in step:
+            conv = db.get_conversation("slides", sc["user"])
+            oid = conv.get("order_id") or (db.one("SELECT id FROM orders WHERE conv_id=? ORDER BY created_at DESC LIMIT 1",
+                                                  (conv["id"],)) or {}).get("id")
+            if "courier" in step:
+                delivery.advance(delivery.find_order(oid))
+            else:
+                aftercare.fast_forward(oid, step["followups"])
+            continue
         if "image" in step:
             agent.handle("slides", sc["user"], image=(ROOT / "data" / "receipts" / step["image"]).read_bytes())
         else:
@@ -49,7 +60,7 @@ PURPLE = RGBColor(0x8B, 0x6C, 0xFF)
 AMBER = RGBColor(0xF5, 0xA5, 0x24)
 RED = RGBColor(0xFF, 0x5D, 0x5D)
 FONT = "Segoe UI"
-TOTAL = 13
+TOTAL = 14
 
 
 def egp(n):
@@ -227,8 +238,38 @@ text(s, 0.8, 6.35, 11.8, 0.55, [[("Safe by design: ", {"bold": True, "color": PU
       "images — a prompt can't make an order free.", {})]], size=12.5, anchor=MSO_ANCHOR.MIDDLE)
 notes(s, "Amber steps 4-6 are the money-protecting part — that's what differentiates this from a chatbot.")
 
-# ================================================================ 5. proof: live demo
-s = base(5, "Does it work?", "A live agent: four real conversations, zero human touches")
+# ================================================================ 5. after the order
+s = base(5, "After the order is confirmed", "Every parcel tracked; customer pinged only when it matters")
+chain = [("Picked up", False), ("In transit", False), ("Out for delivery", True), ("Delivered", True)]
+for i, (k, hl) in enumerate(chain):
+    x = 0.6 + i * 3.1
+    box(s, x, 1.75, 2.85, 1.25, line=GREEN if hl else None)
+    text(s, x + 0.2, 1.85, 2.5, 0.45, k, size=17, bold=True, color=GREEN if hl else FG)
+    text(s, x + 0.2, 2.35, 2.5, 0.6, "🔔 customer notified" if hl else "dashboard only", size=12,
+         color=GREEN if hl else MUTED)
+    if i < 3:
+        a = s.shapes.add_shape(MSO_SHAPE.RIGHT_ARROW, Inches(x + 2.88), Inches(2.25), Inches(0.2), Inches(0.25))
+        a.fill.solid(); a.fill.fore_color.rgb = MUTED; a.line.fill.background()
+cards = [("Failed attempt", "Customer: \"when should we come back?\" Reply goes to the owner as a reschedule.", AMBER),
+         ("Refused / returned", "Silent to the customer. Owner alerted. Customer history updated, so next time a deposit is required.", RED),
+         ("+24 h", "Rating 1-5. A low rating triggers an apology and an instant owner alert.", PURPLE),
+         ("+14 days", "Personal reorder offer + discount code. Repeat order reuses the saved address.", PURPLE)]
+for i, (k, v, c) in enumerate(cards):
+    x = 0.6 + i * 3.1
+    box(s, x, 3.25, 2.85, 1.85)
+    text(s, x + 0.2, 3.35, 2.5, 0.45, k, size=15, bold=True, color=c)
+    text(s, x + 0.2, 3.8, 2.5, 1.3, v, size=11.5, color=FG)
+box(s, 0.6, 5.35, 12.15, 1.2, fill=RGBColor(0x12, 0x2A, 0x1C), line=GREEN)
+text(s, 0.85, 5.42, 11.7, 1.05, [[("Owner on WhatsApp: ", {"bold": True, "color": GREEN}),
+     ("instant alerts only for problems, plus a 21:00 daily summary (orders, cash collected, refusals, ratings, "
+      "repeat orders). Answers summary / deliveries / pending commands on demand.", {})],
+     [("Courier: ", {"bold": True, "color": GREEN}), ("Bosta webhook or any courier or own driver via one endpoint. "
+      "Refusal rate becomes measured, not estimated.", {})]], size=13, anchor=MSO_ANCHOR.MIDDLE, spacing=4)
+notes(s, "Key point for judges: fewer messages, not more. 4 courier updates -> 2 customer messages. "
+         "And every refusal makes the risk engine smarter for that shop.")
+
+# ================================================================ 6. proof: live demo
+s = base(6, "Does it work?", f"A live agent: {len(SCENARIOS)} real conversations, zero human touches")
 shot = ROOT / "docs" / "screenshot.png"
 if shot.exists():
     pic = s.shapes.add_picture(str(shot), Inches(0.6), Inches(1.7), width=Inches(7.3))
@@ -238,19 +279,22 @@ rows = [("Conversations handled", M["conversations"]), ("Orders auto-confirmed &
         ("Deposits verified", f"{M['deposits_collected']} ({M['deposit_cash_egp']} EGP)"),
         ("Risky parcels NOT shipped", f"{M['risky_orders_stopped_before_shipping']} (saved {M['shipping_loss_avoided_egp']} EGP)"),
         ("Upsells accepted", f"{M['upsells_accepted']}/{M['upsells_offered']} (+{M['upsell_revenue_egp']} EGP)"),
+        ("Delivered / cash collected", f"{M['orders_delivered']} ({M['cash_collected_egp']:,} EGP)"),
+        ("Courier updates → customer msgs", f"{M['courier_updates_received']} → {M['customer_highlight_msgs']}"),
+        ("Rating · repeat orders", f"{M['avg_rating'] or '—'} · {M['repeat_orders']}"),
         ("Human minutes spent", M["human_minutes_spent"])]
 box(s, 8.2, 1.7, 4.55, 4.75)
-text(s, 8.45, 1.85, 4.1, 0.4, "Measured in the demo run", size=14, bold=True, color=GREEN)
+text(s, 8.45, 1.8, 4.1, 0.4, "Measured in the demo run", size=14, bold=True, color=GREEN)
 for i, (k, v) in enumerate(rows):
-    y = 2.35 + i * 0.5
-    text(s, 8.45, y, 2.6, 0.45, k, size=12, color=FG, anchor=MSO_ANCHOR.MIDDLE)
-    text(s, 10.9, y, 1.7, 0.45, str(v), size=12.5, bold=True, color=GREEN, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
-text(s, 0.6, 6.55, 12.2, 0.4, "Runs in < 5 min with no API keys:  ./run.sh → localhost:8000 → ▶ Play demo   ·   "
-     "18 automated tests (NLU, risk, fraud, end-to-end, API, prompt-injection)", size=12, color=MUTED)
+    y = 2.2 + i * 0.385
+    text(s, 8.45, y, 2.55, 0.38, k, size=11, color=FG, anchor=MSO_ANCHOR.MIDDLE)
+    text(s, 10.75, y, 1.85, 0.38, str(v), size=11.5, bold=True, color=GREEN, align=PP_ALIGN.RIGHT, anchor=MSO_ANCHOR.MIDDLE)
+text(s, 0.6, 6.55, 12.2, 0.4, "Runs in < 5 min with no API keys (./run.sh → ▶ Play demo)  ·  35 automated tests",
+     size=12, color=MUTED)
 notes(s, "Numbers on the right are produced by the agent's own event log (/api/impact), not typed by hand.")
 
 # ================================================================ 6. business impact (the 4 criteria)
-s = base(6, "Measured business impact", f"{egp(P['total_monthly_impact_egp'])} per month for a {A['monthly_orders']:,}-order shop")
+s = base(7, "Measured business impact", f"{egp(P['total_monthly_impact_egp'])} per month for a {A['monthly_orders']:,}-order shop")
 cards = [("Does it work?", "✓ Live", "WhatsApp / Telegram / web chat, courier booking, receipt checks — end to end", GREEN),
          ("Time saved", f"{P['hours_saved_per_month']:.0f} h / mo", f"{A['monthly_orders']:,} orders × "
           f"{A['manual_minutes_per_order']} min no longer done by hand ≈ half a full-time job", GREEN),
@@ -276,7 +320,7 @@ text(s, 0.6, 6.65, 12.2, 0.3, "Projection from the pilot baseline (slide 9 lists
      "Measured counters come from the agent's event log.", size=10, color=MUTED)
 
 # ================================================================ 7. where the money comes from (chart)
-s = base(7, "Where the money comes from", "Monthly impact breakdown")
+s = base(8, "Where the money comes from", "Monthly impact breakdown")
 cd = CategoryChartData()
 cats = ["Staff time", "Refusals avoided", "Upsell", "After-hours orders", "Saved-order margin"]
 vals = [P["staff_cost_saved_egp"], P["refusal_cost_saved_egp"], P["upsell_revenue_egp"],
@@ -320,7 +364,7 @@ text(s, 8.85, 2.35, 3.7, 4.2, [
      "for 100 EGP, so good customers never feel friction.", {"color": MUTED})]], size=13, spacing=10)
 
 # ================================================================ 8. trust / differentiation
-s = base(8, "Why this agent, not a chatbot", "Built for the Egyptian market and for money-safety")
+s = base(9, "Why this agent, not a chatbot", "Built for the Egyptian market and for money-safety")
 items = [("🗣️", "Speaks the customer's language", "Egyptian Arabic, Franco-Arabic, Arabic-Indic digits, voice notes, "
           "Egyptian areas → shipping zones"),
          ("💳", "Local payment rails", "InstaPay & Vodafone Cash deposits with screenshot fraud checks (wrong account, "
@@ -329,8 +373,8 @@ items = [("🗣️", "Speaks the customer's language", "Egyptian Arabic, Franco-
           "prompt-injection test included"),
          ("🔍", "Explainable decisions", "Every risk score lists its reasons; every action is logged and visible to "
           "the owner"),
-         ("⚡", "Zero setup, zero cost to try", "Runs fully offline with no API keys; add an LLM, WhatsApp, "
-          "Telegram or Bosta key when ready"),
+         ("🔕", "Talks less, not more", "Customers get only delivery highlights; owners get only problems + one "
+          "daily summary"),
          ("🧩", "New shop in minutes", "Catalogue, upsell pairs, zones, fees and deposit policy live in one "
           "store.json file")]
 for i, (ic, t, d) in enumerate(items):
@@ -342,7 +386,7 @@ for i, (ic, t, d) in enumerate(items):
     text(s, x + 1.05, y + 0.6, 4.75, 0.8, d, size=12, color=MUTED)
 
 # ================================================================ 9. assumptions (transparency)
-s = base(9, "How we measured", "Every number is traceable")
+s = base(10, "How we measured", "Every number is traceable")
 text(s, 0.6, 1.65, 6, 0.4, "Measured by the agent (event log)", size=14, bold=True, color=GREEN)
 text(s, 0.6, 2.1, 5.9, 4.3, ["• orders created / confirmed / auto-shipped",
                               "• risky orders flagged and their reasons",
@@ -374,14 +418,14 @@ text(s, 0.6, 6.6, 12.2, 0.35, "Conservative by design: upsell rate is blended wi
      "saved orders are counted as sales.", size=11, color=MUTED)
 
 # ================================================================ 10. business model / next
-s = base(10, "What's next", "From hackathon to a product SMEs hire on Wesam")
+s = base(11, "What's next", "From hackathon to a product SMEs hire on Wesam")
 price = 750
 roi = P["total_monthly_impact_egp"] / price
 stat(s, 0.6, 1.75, 3.9, 2.2, f"{price} EGP", "suggested price / month", sub="Less than one refused parcel a day", vsize=34)
 stat(s, 4.72, 1.75, 3.9, 2.2, f"{roi:.0f}×", "return on price for the pilot shop", sub="Pays for itself in the first ~day", vsize=34)
 stat(s, 8.85, 1.75, 3.9, 2.2, "< 1 day", "to onboard a new shop", sub="Edit store.json, connect WhatsApp number", vsize=34)
 text(s, 0.6, 4.25, 12, 0.4, "Roadmap", size=14, bold=True, color=GREEN)
-road = [("Now", "Web + Telegram + WhatsApp webhook, Bosta, receipt checks, dashboard"),
+road = [("Now", "WhatsApp + Telegram + web, Bosta, receipt checks, delivery tracking, follow-ups, daily summary"),
         ("Next 30 days", "Pilot with 3 real shops; calibrate risk weights on their order history"),
         ("Then", "Instagram DM channel, Shopify/WooCommerce sync, courier status → auto follow-ups"),
         ("Scale", "List on Wesam's marketplace so any Egyptian SME can hire it in one click")]
@@ -392,7 +436,7 @@ for i, (k, v) in enumerate(road):
     text(s, 3.0, y, 9.6, 0.44, v, size=13, anchor=MSO_ANCHOR.MIDDLE)
 
 # ================================================================ 11. demo script + links
-s = base(11, "See it yourself", "Run it in under five minutes")
+s = base(12, "See it yourself", "Run it in under five minutes")
 box(s, 0.6, 1.75, 6.1, 4.8)
 text(s, 0.85, 1.9, 5.6, 0.4, "Judge quick-start", size=14, bold=True, color=GREEN)
 text(s, 0.85, 2.35, 5.6, 2.5, ["git clone https://github.com/MahmoudJimmey/Ta2keed",
@@ -400,16 +444,16 @@ text(s, 0.85, 2.35, 5.6, 2.5, ["git clone https://github.com/MahmoudJimmey/Ta2ke
                                 "./run.sh        # Windows: run.bat",
                                 "# open http://localhost:8000  →  ▶ Play demo",
                                 "",
-                                "pytest -q       # 18 tests"], size=13, font="Consolas", color=FG, spacing=4)
+                                "pytest -q       # 35 tests"], size=13, font="Consolas", color=FG, spacing=4)
 text(s, 0.85, 4.75, 5.6, 1.7, ["No API keys, no accounts, no database server.",
                                 "Optional .env adds LLM, WhatsApp, Telegram, Bosta."], size=13, color=MUTED, spacing=4)
 box(s, 6.95, 1.75, 5.8, 4.8)
-text(s, 7.2, 1.9, 5.3, 0.4, "Four demo scenarios", size=14, bold=True, color=GREEN)
+text(s, 7.2, 1.9, 5.3, 0.4, f"{len(SCENARIOS)} demo scenarios", size=14, bold=True, color=GREEN)
 for i, sc in enumerate(SCENARIOS.values()):
-    text(s, 7.2, 2.4 + i * 1.0, 5.35, 0.95, [[(f"{i+1}. ", {"bold": True, "color": GREEN}), (sc["title"].replace(" -> ", " → "), {})]], size=13)
+    text(s, 7.2, 2.4 + i * 0.82, 5.35, 0.8, [[(f"{i+1}. ", {"bold": True, "color": GREEN}), (sc["title"].replace(" -> ", " → "), {})]], size=13)
 
 # ================================================================ 12. risks & mitigations
-s = base(12, "Honest limitations", "What could go wrong — and how we handle it")
+s = base(13, "Honest limitations", "What could go wrong — and how we handle it")
 rows = [("Rules miss an unusual message", "Falls back to the LLM when configured; always asks instead of guessing; owner sees every order"),
         ("Fake receipts get more sophisticated", "Checks recipient, amount, status, duplicate reference & image hash; flags edited-looking screenshots; owner alert"),
         ("Deposit annoys good customers", "Only the riskiest ~30% are asked; trusted repeat buyers get a lower score automatically"),

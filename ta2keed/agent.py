@@ -203,12 +203,12 @@ def _create_order(conv: dict) -> dict:
     upsell_value = sum(i["line"] for i in items if i.get("upsell"))
     now = time.time()
     db.x("""INSERT INTO orders(id,conv_id,customer_phone,customer_name,address,zone,items,subtotal,shipping,total,
-            upsell_value,risk_score,risk_reasons,deposit_required,status,after_hours,created_at,updated_at)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            upsell_value,risk_score,risk_reasons,deposit_required,status,after_hours,created_at,updated_at,source)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
          (oid, conv["id"], d["phone"], d["name"], d["address"], d.get("zone"),
           json.dumps(items, ensure_ascii=False), sub, ship, total, upsell_value, score,
           json.dumps(reasons, ensure_ascii=False), int(dep), "awaiting_deposit" if dep else "confirmed",
-          int(_after_hours()), now, now))
+          int(_after_hours()), now, now, d.get("source", "dm")))
     if not db.customer(d["phone"]):
         db.x("INSERT INTO customers(phone,name,created_at) VALUES(?,?,?)", (d["phone"], d["name"], now))
     db.log_event(conv["id"], "order_created", {"total": total, "risk": score, "reasons": reasons,
@@ -220,8 +220,8 @@ def _create_order(conv: dict) -> dict:
 def _ship(order: dict, conv_id: int) -> dict:
     o = {**order, "items": json.loads(order["items"]) if isinstance(order["items"], str) else order["items"]}
     shipment = courier.create_shipment(o)
-    db.x("UPDATE orders SET status='shipped', tracking=?, updated_at=? WHERE id=?",
-         (shipment["tracking"], time.time(), order["id"]))
+    db.x("UPDATE orders SET status='shipped', delivery_status='created', delivery_updated_at=?, tracking=?, updated_at=? "
+         "WHERE id=?", (time.time(), shipment["tracking"], time.time(), order["id"]))
     db.log_event(conv_id, "shipment_created", shipment, order["id"])
     return shipment
 
@@ -259,14 +259,28 @@ def handle(channel: str, user_id: str, text: str = "", *, image: bytes | None = 
 
     state = conv["state"]
 
-    # finished conversations: status check or start a new order
+    # finished conversations: post-delivery replies, status check, or start a new order
     if state in ("CONFIRMED", "CANCELLED"):
-        if conv.get("order_id") and any(w in nlu.normalize(text) for w in ["فين", "امتي", "امتى", "الاوردر", "الشحنه", "status", "tracking"]):
+        from . import aftercare, delivery
+        was_reorder = (d.get("post") or {}).get("kind") == "reorder"
+        post_replies = aftercare.handle_reply(conv, text)
+        if post_replies is not None:
+            return _reply(conv, post_replies)
+        if conv.get("order_id") and any(w in nlu.normalize(text) for w in ["فين", "امتي", "امتى", "الاوردر", "الشحنه", "وصل", "status", "tracking"]):
             o = db.one("SELECT * FROM orders WHERE id=?", (conv["order_id"],))
             if o:
-                return _reply(conv, [f"أوردرك {o['id']} حالته: {o['status']} — رقم الشحنة {o['tracking'] or '—'} 🚚"])
+                label = delivery.LABEL_AR.get(o.get("delivery_status") or "", o["status"])
+                return _reply(conv, [f"أوردرك {o['id']}: {label} 🚚 — رقم الشحنة {o['tracking'] or '—'}"])
         conv["state"], conv["draft"], conv["order_id"] = "COLLECTING", {}, None
         d = conv["draft"]
+        if was_reorder:
+            d["source"] = "reorder"
+        # returning customer: remember who they are and where they live (they can still change it)
+        prev = db.one("SELECT customer_name, customer_phone, address, zone FROM orders WHERE conv_id=? "
+                      "ORDER BY created_at DESC LIMIT 1", (conv["id"],))
+        if prev:
+            d.update(name=prev["customer_name"], phone=prev["customer_phone"], address=prev["address"],
+                     zone=prev["zone"], address_detail_asked=True, returning=True)
         state = "COLLECTING"
 
     if text and nlu.is_cancel(text) and state != "NEW":
